@@ -1,7 +1,9 @@
 package com.hexagram2021.sweeper_maid;
 
+import com.google.common.collect.Lists;
 import com.hexagram2021.sweeper_maid.command.SMCommands;
 import com.hexagram2021.sweeper_maid.config.SMCommonConfig;
+import com.hexagram2021.sweeper_maid.save.SMSavedData;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.ChatFormatting;
@@ -15,7 +17,6 @@ import net.minecraft.network.chat.ComponentUtils;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -27,6 +28,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -34,6 +36,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.registries.ForgeRegistries;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings("unused")
@@ -48,12 +51,9 @@ public class SweeperMaid {
 		MinecraftForge.EVENT_BUS.register(this);
 	}
 
-	public static final SimpleContainer dustbin = new SimpleContainer(54);
 	private int sweepTickRemain = 0;
 	private boolean toSweep = false;
 	private boolean firstTick = true;
-
-	private static final RandomSource randomSource = RandomSource.create();
 
 	@SubscribeEvent
 	public void registerCommands(RegisterCommandsEvent event) {
@@ -97,6 +97,7 @@ public class SweeperMaid {
 				}
 			}
 			case END -> {
+				SimpleContainer dustbin = SMSavedData.getDustbin();
 				if(this.firstTick) {
 					this.firstTick = false;
 					this.toSweep = false;
@@ -110,22 +111,25 @@ public class SweeperMaid {
 					AtomicInteger droppedItems = new AtomicInteger();
 					AtomicInteger extraEntities = new AtomicInteger();
 					event.getServer().getAllLevels().forEach(serverLevel -> {
-						for(Entity entity: serverLevel.getAllEntities()) {
+						Iterable<Entity> entities = serverLevel.getAllEntities();
+						List<Entity> killedEntities = Lists.newArrayList();
+						for(Entity entity: entities) {
 							if(entity instanceof ItemEntity itemEntity) {
 								dustbin.addItem(itemEntity.getItem());
 								droppedItems.addAndGet(1);
-								itemEntity.kill();
+								killedEntities.add(itemEntity);
 							} else if(entity != null) {
 								ResourceLocation typeKey = ForgeRegistries.ENTITY_TYPES.getKey(entity.getType());
 								if (typeKey != null) {
 									String type = typeKey.toString();
 									if(SMCommonConfig.EXTRA_ENTITY_TYPES.get().contains(type)) {
 										extraEntities.addAndGet(1);
-										entity.kill();
+										killedEntities.add(entity);
 									}
 								}
 							}
 						}
+						killedEntities.forEach(Entity::kill);
 					});
 					for(int i = 0; i < oldBin.getContainerSize(); ++i) {
 						dustbin.addItem(oldBin.getItem(i));
@@ -144,8 +148,19 @@ public class SweeperMaid {
 							Component.literal(SMCommonConfig.CHAT_MESSAGE_AFTER_SWEEP.get()).append(Component.literal("/sweepermaid dustbin").withStyle(style ->
 									style.withColor(ChatFormatting.GREEN).withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/sweepermaid dustbin")))), false
 					);
+					dustbin.setChanged();
 				}
 			}
+		}
+	}
+
+	@SubscribeEvent
+	public void onServerStarted(ServerStartedEvent event) {
+		ServerLevel world = event.getServer().getLevel(Level.OVERWORLD);
+		assert world != null;
+		if (!world.isClientSide) {
+			SMSavedData worldData = world.getDataStorage().computeIfAbsent(SMSavedData::new, SMSavedData::new, SMSavedData.SAVED_DATA_NAME);
+			SMSavedData.setInstance(worldData);
 		}
 	}
 

@@ -1,7 +1,7 @@
 package com.hexagram2021.sweeper_maid.command;
 
-import com.hexagram2021.sweeper_maid.SweeperMaid;
 import com.hexagram2021.sweeper_maid.config.SMCommonConfig;
+import com.hexagram2021.sweeper_maid.save.SMSavedData;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -34,7 +34,7 @@ public class SMCommands {
 			}
 			@Override
 			public AbstractContainerMenu createMenu(int id, Inventory inventory, Player player1) {
-				return ChestMenu.sixRows(id, inventory, SweeperMaid.dustbin);
+				return ChestMenu.sixRows(id, inventory, SMSavedData.getDustbin());
 			}
 		});
 		return 1;
