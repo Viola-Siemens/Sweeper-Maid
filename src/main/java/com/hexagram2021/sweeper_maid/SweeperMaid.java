@@ -63,6 +63,9 @@ public class SweeperMaid {
 
 	@SubscribeEvent
 	public void onTick(TickEvent.ServerTickEvent event) {
+		if(SMCommonConfig.ITEM_SWEEP_INTERVAL.get() == 0) {
+			return;
+		}
 		switch (event.phase) {
 			case START -> {
 				this.sweepTickRemain -= 1;
