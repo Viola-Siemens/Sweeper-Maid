@@ -160,7 +160,7 @@ public class SweeperMaid {
 							}
 						}
 
-						killedEntities.forEach(Entity::kill);
+						killedEntities.forEach(Entity::discard);
 					});
 
 					// 发送消息通知玩家
