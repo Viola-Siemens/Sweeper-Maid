@@ -1,5 +1,7 @@
 package com.hexagram2021.sweeper_maid.save;
 
+import com.google.common.collect.Lists;
+import com.hexagram2021.sweeper_maid.config.SMCommonConfig;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -8,41 +10,25 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.item.ItemStack;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 public class SMSavedData extends SavedData {
 	@Nullable
 	private static SMSavedData INSTANCE;
 	public static final String SAVED_DATA_NAME = "SweeperMaid-SavedData";
-	private static final int MAX_CONTAINER_SIZE = 54;  // 每个垃圾桶的容量
+	private static final int MAX_CONTAINER_SIZE = 54;
 
-	// 使用List来存储多个垃圾桶
-	public final List<SimpleContainer> dustbins = new ArrayList<>();
+	public final List<SimpleContainer> dustbins = Lists.newArrayList();
 
 	public SMSavedData() {
 		super();
-		// 初始化第一个垃圾桶
-		this.dustbins.add(createNewDustbin());
-	}
-
-	// 创建新的垃圾桶
-	private SimpleContainer createNewDustbin() {
-		return new SimpleContainer(MAX_CONTAINER_SIZE) {
-			@Override
-			public void setChanged() {
-				super.setChanged();
-				if (INSTANCE != null) {
-					INSTANCE.setDirty();
-				}
-			}
-		};
 	}
 
 	private static final String TAG_ITEMS = "Items";
 	private static final String TAG_DUSTBINS = "Dustbins";
 
-	// 加载数据时从NBT恢复所有垃圾桶
 	public SMSavedData(CompoundTag nbt) {
 		this();
 		if (nbt.contains(TAG_DUSTBINS, Tag.TAG_LIST)) {
@@ -73,47 +59,67 @@ public class SMSavedData extends SavedData {
 		return nbt;
 	}
 
-	// 添加 getInstance 方法
 	public static SMSavedData getInstance() {
-		if (INSTANCE == null) {
-			throw new IllegalStateException("SMSavedData has not been initialized yet!");
-		}
-		return INSTANCE;
+		return Objects.requireNonNull(INSTANCE, "SMSavedData has not been initialized yet!");
 	}
-
 
 	public static void setInstance(SMSavedData in) {
 		INSTANCE = in;
 	}
 
-	// 获取所有垃圾桶
-	public static List<SimpleContainer> getDustbins() {
-		assert INSTANCE != null;
-		return INSTANCE.dustbins;
-	}
-
-	// 向垃圾桶添加物品
 	public void addItemToDustbin(ItemStack stack) {
 		synchronized (this.dustbins) {
-			// 找到一个没有满的垃圾桶
-			for (SimpleContainer dustbin : this.dustbins) {
+			// Find the first dustbin that can be added items.
+			for (SimpleContainer dustbin: this.dustbins) {
 				if (dustbin.canAddItem(stack)) {
 					dustbin.addItem(stack);
 					return;
 				}
 			}
-			// 如果所有垃圾桶都已满，创建一个新的垃圾桶
-			SimpleContainer newDustbin = createNewDustbin();
-			newDustbin.addItem(stack);
-			this.dustbins.add(newDustbin);
 		}
 	}
 
-	public void removeAllDustbins() {
-		// 清空所有垃圾桶
-		this.dustbins.clear();  // 直接清空垃圾桶列表
-		this.setDirty();  // 标记数据为已更改，以便保存
+	public static SimpleContainer getDustbinContainer(int index) {
+		return getInstance().dustbins.get(index);
 	}
 
+	public void accessDustbins(Consumer<List<SimpleContainer>> consumer) {
+		synchronized (this.dustbins) {
+			consumer.accept(this.dustbins);
+		}
+		this.setDirty();
+	}
 
+	public static void initialize() {
+		List<SimpleContainer> dustbins = getInstance().dustbins;
+
+		//Initialize dustbins.
+		synchronized (dustbins) {
+			int expectedSize = SMCommonConfig.DUSTBIN_COUNT.get();
+			if(dustbins.size() == expectedSize) {
+				return;
+			}
+			if(dustbins.size() < expectedSize) {
+				for(int i = dustbins.size(); i < expectedSize; ++i) {
+					dustbins.add(createNewDustbin());
+				}
+			} else {
+				do {
+					dustbins.remove(dustbins.size() - 1);
+				} while(dustbins.size() > expectedSize);
+			}
+		}
+	}
+
+	private static SimpleContainer createNewDustbin() {
+		return new SimpleContainer(MAX_CONTAINER_SIZE) {
+			@Override
+			public void setChanged() {
+				super.setChanged();
+				if (INSTANCE != null) {
+					INSTANCE.setDirty();
+				}
+			}
+		};
+	}
 }

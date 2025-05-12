@@ -20,10 +20,10 @@ public class SMCommands {
 	public static LiteralArgumentBuilder<CommandSourceStack> register() {
 		return Commands.literal("sweepermaid").then(
 				Commands.literal("dustbin").requires(stack -> stack.hasPermission(SMCommonConfig.PERMISSION_LEVEL_DUSTBIN.get()))
-						.executes(context -> dustbin(context.getSource().getPlayer(), 0)) // 默认展示第一个垃圾桶
+						.executes(context -> dustbin(context.getSource().getPlayer(), 0)) // default the first dustbin
 		).then(
 				Commands.literal("dustbin").then(
-						Commands.argument("index", IntegerArgumentType.integer(0)) // 可以选择查看第几个垃圾桶
+						Commands.argument("index", IntegerArgumentType.integer(0))
 								.executes(context -> dustbin(context.getSource().getPlayer(), IntegerArgumentType.getInteger(context, "index")))
 				)
 		);
@@ -34,8 +34,7 @@ public class SMCommands {
 			return 0;
 		}
 
-		// 获取垃圾桶列表并判断 index 是否有效
-        if (index >= 0 && index < SMSavedData.getDustbins().size()) {
+        if (index >= 0 && index < SMCommonConfig.DUSTBIN_COUNT.get()) {
             player.openMenu(new MenuProvider() {
                 @Override
                 public Component getDisplayName() {
@@ -44,8 +43,7 @@ public class SMCommands {
 
                 @Override
                 public AbstractContainerMenu createMenu(int id, Inventory inventory, Player player1) {
-// 打开第 index 个垃圾桶
-                    return ChestMenu.sixRows(id, inventory, SMSavedData.getDustbins().get(index));
+                    return ChestMenu.sixRows(id, inventory, SMSavedData.getDustbinContainer(index));
                 }
             });
             return 1;

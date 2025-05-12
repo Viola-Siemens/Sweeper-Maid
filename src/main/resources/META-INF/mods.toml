@@ -1,29 +1,27 @@
 modLoader="javafml"
-loaderVersion="[47,)"
-license="AGPL v3"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
 issueTrackerURL="https://github.com/Viola-Siemens/Sweeper-Maid/issues"
 
 [[mods]]
-modId="sweeper_maid"
-version="${file.jarVersion}"
-displayName="Sweeper Maid"
-logoFile="logo.png"
-credits="Liu Dongyu"
-authors="Hexagram"
-description='''
-A lightweight mod that collects all dropped items.
-'''
+    modId="${mod_id}"
+    version="${mod_version}"
+    displayName="${mod_name}"
+    logoFile="logo.png"
+    credits="Hexagram"
+    authors="${mod_authors}"
+    description='''${mod_description}'''
 
-[[dependencies.sweeper_maid]]
-    modId="forge"
+[[dependencies.${mod_id}]]
+    modId="neoforge"
     mandatory=true
-    versionRange="[47,)"
+    versionRange="${neo_version_range}"
     ordering="NONE"
     side="BOTH"
 
-[[dependencies.sweeper_maid]]
+[[dependencies.${mod_id}]]
     modId="minecraft"
     mandatory=true
-    versionRange="[1.20,1.21)"
+    versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="BOTH"
