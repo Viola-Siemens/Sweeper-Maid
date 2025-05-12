@@ -14,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentUtils;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -23,6 +24,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.MinecraftForge;
@@ -36,7 +38,9 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.registries.ForgeRegistries;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings("unused")
@@ -46,9 +50,11 @@ public class SweeperMaid {
 	public static final String MODNAME = "Sweeper Maid";
 	public static final String VERSION = ModList.get().getModFileById(MODID).versionString();
 
+	private static int ITEM_OVERLOAD_THRESHOLD;
+
 	public SweeperMaid() {
-		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, SMCommonConfig.getConfig());
 		MinecraftForge.EVENT_BUS.register(this);
+		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, SMCommonConfig.getConfig());
 	}
 
 	private int sweepTickRemain = 0;
@@ -63,32 +69,32 @@ public class SweeperMaid {
 
 	@SubscribeEvent
 	public void onTick(TickEvent.ServerTickEvent event) {
-		if(SMCommonConfig.ITEM_SWEEP_INTERVAL.get() == 0) {
+		if (SMCommonConfig.ITEM_SWEEP_INTERVAL.get() == 0) {
 			return;
 		}
 		switch (event.phase) {
 			case START -> {
 				this.sweepTickRemain -= 1;
-				if(this.sweepTickRemain <= 0) {
+				if (this.sweepTickRemain <= 0) {
 					this.toSweep = true;
 					this.sweepTickRemain = SMCommonConfig.ITEM_SWEEP_INTERVAL.get() * SharedConstants.TICKS_PER_SECOND;
-				} else if(this.sweepTickRemain == 15 * SharedConstants.TICKS_PER_SECOND || this.sweepTickRemain == 30 * SharedConstants.TICKS_PER_SECOND || this.sweepTickRemain == 60 * SharedConstants.TICKS_PER_SECOND) {
+				} else if (this.sweepTickRemain == 15 * SharedConstants.TICKS_PER_SECOND || this.sweepTickRemain == 30 * SharedConstants.TICKS_PER_SECOND || this.sweepTickRemain == 60 * SharedConstants.TICKS_PER_SECOND) {
 					event.getServer().getPlayerList().getPlayers().forEach(player -> {
 						try {
 							player.connection.send(new ClientboundSetActionBarTextPacket(ComponentUtils.updateForEntity(
 									createCommandSourceStack(player, player.level(), player.blockPosition()),
-									Component.literal(SMCommonConfig.MESSAGE_BEFORE_SWEEP_15_30_60.get().replaceAll("\\$1", String.valueOf(this.sweepTickRemain / SharedConstants.TICKS_PER_SECOND))).withStyle(ChatFormatting.GRAY),
+									Component.literal(SMCommonConfig.MESSAGE_BEFORE_SWEEP_15_30_60.get().replace("$1", String.valueOf(this.sweepTickRemain / SharedConstants.TICKS_PER_SECOND))).withStyle(ChatFormatting.GRAY),
 									player, 0
 							)));
 						} catch (CommandSyntaxException ignored) {
 						}
 					});
-				} else if(this.sweepTickRemain % SharedConstants.TICKS_PER_SECOND == 0 && this.sweepTickRemain / SharedConstants.TICKS_PER_SECOND <= 10) {
+				} else if (this.sweepTickRemain % SharedConstants.TICKS_PER_SECOND == 0 && this.sweepTickRemain / SharedConstants.TICKS_PER_SECOND <= 10) {
 					event.getServer().getPlayerList().getPlayers().forEach(player -> {
 						try {
 							player.connection.send(new ClientboundSetActionBarTextPacket(ComponentUtils.updateForEntity(
 									createCommandSourceStack(player, player.level(), player.blockPosition()),
-									Component.literal(SMCommonConfig.MESSAGE_BEFORE_SWEEP_1_10.get().replaceAll("\\$1", String.valueOf(this.sweepTickRemain / SharedConstants.TICKS_PER_SECOND))).withStyle(ChatFormatting.GOLD),
+									Component.literal(SMCommonConfig.MESSAGE_BEFORE_SWEEP_1_10.get().replace("$1", String.valueOf(this.sweepTickRemain / SharedConstants.TICKS_PER_SECOND))).withStyle(ChatFormatting.GOLD),
 									player, 0
 							)));
 						} catch (CommandSyntaxException ignored) {
@@ -97,58 +103,121 @@ public class SweeperMaid {
 				}
 			}
 			case END -> {
-				SimpleContainer dustbin = SMSavedData.getDustbin();
-				if(this.firstTick) {
+				if (this.firstTick) {
 					this.firstTick = false;
 					this.toSweep = false;
-				} else if(this.toSweep) {
+				} else if (this.toSweep) {
 					this.toSweep = false;
-					SimpleContainer oldBin = new SimpleContainer(dustbin.getContainerSize());
-					for(int i = 0; i < dustbin.getContainerSize(); ++i) {
-						oldBin.setItem(i, dustbin.getItem(i));
-						dustbin.setItem(i, ItemStack.EMPTY);
-					}
+
+					// 获取所有垃圾桶
+					List<SimpleContainer> dustbins = SMSavedData.getDustbins();
+
+					SMSavedData.getInstance().removeAllDustbins();
+
 					AtomicInteger droppedItems = new AtomicInteger();
 					AtomicInteger extraEntities = new AtomicInteger();
+					AtomicInteger blacklistedItems = new AtomicInteger();
+					Map<LevelChunk, Map<String, Integer>> chunkItemCounts = new HashMap<>();
+
 					event.getServer().getAllLevels().forEach(serverLevel -> {
 						Iterable<Entity> entities = serverLevel.getAllEntities();
 						List<Entity> killedEntities = Lists.newArrayList();
-						for(Entity entity: entities) {
-							if(entity instanceof ItemEntity itemEntity) {
-								dustbin.addItem(itemEntity.getItem());
-								droppedItems.addAndGet(1);
-								killedEntities.add(itemEntity);
-							} else if(entity != null) {
+
+						for (Entity entity : entities) {
+							if (entity instanceof ItemEntity itemEntity) {
+								ItemStack itemStack = itemEntity.getItem();
+								ResourceLocation itemKeyResourceLocation = ForgeRegistries.ITEMS.getKey(itemStack.getItem());
+
+								if (itemKeyResourceLocation != null) {
+									String itemKey = itemKeyResourceLocation.toString();
+
+									// 添加处理逻辑，确保每个物品实体只被处理一次
+									if (!killedEntities.contains(entity)) {
+										if (SMCommonConfig.ITEM_BLACKLIST.get().contains(itemKey)) {
+											blacklistedItems.addAndGet(itemStack.getCount());
+											killedEntities.add(itemEntity);
+										} else {
+											SMSavedData.getInstance().addItemToDustbin(itemStack);
+											droppedItems.addAndGet(itemStack.getCount());
+											killedEntities.add(itemEntity);
+
+											LevelChunk chunk = serverLevel.getChunkAt(entity.blockPosition());
+											chunkItemCounts.computeIfAbsent(chunk, k -> new HashMap<>());
+											Map<String, Integer> itemCounts = chunkItemCounts.get(chunk);
+											itemCounts.put(itemKey, itemCounts.getOrDefault(itemKey, 0) + itemStack.getCount());
+										}
+									}
+								}
+							} else if (entity != null) {
 								ResourceLocation typeKey = ForgeRegistries.ENTITY_TYPES.getKey(entity.getType());
 								if (typeKey != null) {
 									String type = typeKey.toString();
-									if(SMCommonConfig.EXTRA_ENTITY_TYPES.get().contains(type)) {
-										extraEntities.addAndGet(1);
+									if (SMCommonConfig.EXTRA_ENTITY_TYPES.get().contains(type)) {
+										extraEntities.incrementAndGet();
 										killedEntities.add(entity);
 									}
 								}
 							}
 						}
-						killedEntities.forEach(Entity::kill);
+
+						killedEntities.forEach(Entity::discard);
 					});
-					for(int i = 0; i < oldBin.getContainerSize(); ++i) {
-						dustbin.addItem(oldBin.getItem(i));
-					}
+
+					// 发送消息通知玩家
 					event.getServer().getPlayerList().getPlayers().forEach(player -> {
 						try {
 							player.connection.send(new ClientboundSetActionBarTextPacket(ComponentUtils.updateForEntity(
 									createCommandSourceStack(player, player.level(), player.blockPosition()),
-									Component.literal(SMCommonConfig.MESSAGE_AFTER_SWEEP.get().replaceAll("\\$1", droppedItems.toString()).replaceAll("\\$2", extraEntities.toString())).withStyle(ChatFormatting.AQUA),
+									Component.literal(SMCommonConfig.MESSAGE_AFTER_SWEEP.get()
+													.replace("$1", droppedItems.toString())
+													.replace("$2", extraEntities.toString())
+													.replace("$3", blacklistedItems.toString()))  // 增加黑名单物品统计
+											.withStyle(ChatFormatting.AQUA),
 									player, 0
 							)));
 						} catch (CommandSyntaxException ignored) {
 						}
 					});
-					event.getServer().getPlayerList().broadcastSystemMessage(
-							Component.literal(SMCommonConfig.CHAT_MESSAGE_AFTER_SWEEP.get()).append(Component.literal("/sweepermaid dustbin").withStyle(style ->
-									style.withColor(ChatFormatting.GREEN).withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/sweepermaid dustbin")))), false
-					);
-					dustbin.setChanged();
+
+
+					// 动态生成垃圾桶列表信息并发送给每个玩家
+					event.getServer().getPlayerList().getPlayers().forEach(player -> {
+						MutableComponent message = Component.literal(SMCommonConfig.CHAT_MESSAGE_AFTER_SWEEP.get());
+
+						// 生成每个垃圾桶的命令链接
+						for (int i = 0; i < dustbins.size(); i++) {
+							final int dustbinIndex = i;
+							message = message.append(Component.literal("[" + SMCommonConfig.DUSTBIN_NAME.get() + (dustbinIndex + 1) + "]")
+									.withStyle(style -> style.withColor(ChatFormatting.GREEN)
+											.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/sweepermaid dustbin " + dustbinIndex))));
+
+							if (dustbinIndex < dustbins.size() - 1) {
+								message = message.append(Component.literal(", "));
+							}
+						}
+
+						// 发送消息给当前玩家
+						player.sendSystemMessage(message);
+					});
+
+					// 发送掉落物超量区块信息给每个玩家
+					chunkItemCounts.forEach((chunk, itemCounts) -> itemCounts.forEach((itemKey, count) -> {
+                        if (count > ITEM_OVERLOAD_THRESHOLD) {
+                            BlockPos chunkPos = chunk.getPos().getWorldPosition();
+                            String overloadMessageText = SMCommonConfig.OVERLOAD_MESSAGE.get()
+                                    .replace("$1", String.valueOf(chunkPos.getX()))
+                                    .replace("$2", String.valueOf(chunkPos.getZ()))
+                                    .replace("$3", String.valueOf(count))
+                                    .replace("$4", itemKey);
+
+                            MutableComponent overloadMessage = Component.literal(overloadMessageText).withStyle(ChatFormatting.BLUE);
+
+                            event.getServer().getPlayerList().getPlayers().forEach(player -> player.sendSystemMessage(overloadMessage));
+                        }
+                    }));
+
+					// 保存垃圾桶状态
+					SMSavedData.getInstance().setDirty();
 				}
 			}
 		}
@@ -156,6 +225,7 @@ public class SweeperMaid {
 
 	@SubscribeEvent
 	public void onServerStarted(ServerStartedEvent event) {
+		ITEM_OVERLOAD_THRESHOLD = SMCommonConfig.ITEM_OVERLOAD_THRESHOLD.get();
 		ServerLevel world = event.getServer().getLevel(Level.OVERWORLD);
 		assert world != null;
 		if (!world.isClientSide) {
@@ -165,6 +235,6 @@ public class SweeperMaid {
 	}
 
 	private static CommandSourceStack createCommandSourceStack(Player player, Level level, BlockPos blockPos) {
-		return new CommandSourceStack(CommandSource.NULL, Vec3.atCenterOf(blockPos), Vec2.ZERO, (ServerLevel)level, 2, player.getName().getString(), player.getDisplayName(), level.getServer(), player);
+		return new CommandSourceStack(CommandSource.NULL, Vec3.atCenterOf(blockPos), Vec2.ZERO, (ServerLevel) level, 2, player.getName().getString(), player.getDisplayName(), level.getServer(), player);
 	}
 }

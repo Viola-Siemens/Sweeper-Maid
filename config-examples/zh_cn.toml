@@ -1,18 +1,30 @@
-# Thanks: MCMod user @ThisWuming.
+
 [sweeper_maid-common-config]
-    #If 0, disable item sweeping. If > 0, cool down (in seconds) between two item sweeping.
-    #Range: 0 ~ 360000
-    ITEM_SWEEP_INTERVAL = 900
-    #Other entities of types will be killed when cleaning, e.g. arrows. You can also kill mobs or even players by setting this.
-    EXTRA_ENTITY_TYPES = ["minecraft:arrow", "minecraft:spectral_arrow", "oceanworld:drip_ice"]
-    #What message will be sent to players when there's 15s, 30s and 60s left to sweep. "$1" stands for the remaining time (in seconds).
-    MESSAGE_BEFORE_SWEEP_15_30_60 = "【清洁女仆】：§6§l$1秒§r后将清除掉落物！"
-    #What message will be sent to players when there's 1s~10s left to sweep. "$1" stands for the remaining time (in seconds).
-    MESSAGE_BEFORE_SWEEP_1_10 = "【清洁女仆】：§9§l$1秒§r后清除掉落物，请妥善保管您的物品！"
-    #What message will be sent to players after a sweep. "$1" stands for the number of killed dropped items, and "$2" stands for the number of killed entities.
-    MESSAGE_AFTER_SWEEP = "【清洁女仆】：本次清扫带走了§6§l$1个§r掉落物、§6§l$2个§r卡服实体。§6§l15分钟§r后将开始下一次清扫！"
-    #What chat message will be sent to players after a sweep. Command will be appended to the end of the chat message.
-    CHAT_MESSAGE_AFTER_SWEEP = "【清洁女仆】：§6§l15分钟§r后将开始下一次清扫~寻找丢失物品➡"
-    #Permission level of a player to open the dustbin.
-    #Range: 0 ~ 4
-    PERMISSION_LEVEL_DUSTBIN = 1
+#If 0, disable item sweeping. If > 0, cool down (in seconds) between two item sweeping.
+#Range: 0 ~ 360000
+ITEM_SWEEP_INTERVAL = 600
+#Permission level of a player to open the dustbin.
+#Range: 0 ~ 4
+PERMISSION_LEVEL_DUSTBIN = 0
+#Items in this list will be cleaned but not added to the dustbin.
+ITEM_BLACKLIST = ["minecraft:cobblestone", "minecraft:sand"]
+#Item overload in a chunk. If exceeded, a warning message will be sent.
+#Range: 1 ~ 6400000
+ITEM_OVERLOAD_THRESHOLD = 640
+#Other entities of types will be killed when cleaning, e.g. arrows. You can also kill mobs or even players by setting this.
+EXTRA_ENTITY_TYPES = ["minecraft:arrow", "minecraft:spectral_arrow", "oceanworld:drip_ice"]
+#What message will be sent to players when there's 15s, 30s and 60s left to sweep. "$1" stands for the remaining time (in seconds).
+MESSAGE_BEFORE_SWEEP_15_30_60 = "[扫地女仆]：我将在 $1 秒后打扫地板！"
+#What message will be sent to players when there's 1s~10s left to sweep. "$1" stands for the remaining time (in seconds).
+MESSAGE_BEFORE_SWEEP_1_10 = "[扫地女仆]：我将在 $1 秒后打扫地板！"
+#What message will be sent to players after a sweep. "$1" stands for the number of killed dropped items, and "$2" stands for the number of killed entities.
+MESSAGE_AFTER_SWEEP = "[扫地女仆]：清扫过程中清理了 $1 个掉落物品和 $2 个不必要的实体。"
+#What chat message will be sent to players after a sweep. Command will be appended to the end of the chat message.
+CHAT_MESSAGE_AFTER_SWEEP = "[扫地女仆]：有遗漏的东西吗？让我们检查一下垃圾箱： "
+#What message will be sent to players when open a wrong dustbin.
+MESSAGE_WRONG_DUSTBIN = "[扫地女仆]：没有这个垃圾箱哦!"
+#Dustbin.
+DUSTBIN_NAME = "垃圾箱 "
+#Message to be sent when item overload threshold is exceeded. "$1" stands for chunk X position, "$2" stands for chunk Z position, and "$3" stands for item count.
+OVERLOAD_MESSAGE = "[扫地女仆]: 位于此区域 ($1, $2) 的物品过多, 整整有 $3 个!"
+
