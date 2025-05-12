@@ -23,6 +23,7 @@ public final class SMCommonConfig {
 	public static final ModConfigSpec.IntValue DUSTBIN_COUNT;
 	public static final ModConfigSpec.ConfigValue<String> CHAT_MESSAGE_AFTER_SWEEP;
 	public static final ModConfigSpec.IntValue PERMISSION_LEVEL_DUSTBIN;
+	public static final ModConfigSpec.IntValue PERMISSION_LEVEL_CLEAN;
 	public static final ModConfigSpec.IntValue ITEM_OVERLOAD_THRESHOLD;
 	public static final ModConfigSpec.ConfigValue<String> OVERLOAD_MESSAGE;
 
@@ -59,6 +60,7 @@ public final class SMCommonConfig {
 		CHAT_MESSAGE_AFTER_SWEEP = BUILDER.comment("What chat message will be sent to players after a sweep. Command will be appended to the end of the chat message.")
 				.define("CHAT_MESSAGE_AFTER_SWEEP", "[Sweeper Maid]: Anything's missing? Let's checkout the dustbin:");
 		PERMISSION_LEVEL_DUSTBIN = BUILDER.comment("Permission level of a player to open the dustbin.").defineInRange("PERMISSION_LEVEL_DUSTBIN", 0, 0, 4);
+		PERMISSION_LEVEL_CLEAN = BUILDER.comment("Permission level of a player to clean immediately.").defineInRange("PERMISSION_LEVEL_CLEAN", 2, 0, 4);
 		BUILDER.pop();
 		SPEC = BUILDER.build();
 	}

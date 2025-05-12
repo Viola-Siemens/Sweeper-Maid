@@ -1,5 +1,6 @@
 package com.hexagram2021.sweeper_maid.command;
 
+import com.hexagram2021.sweeper_maid.SweeperMaid;
 import com.hexagram2021.sweeper_maid.config.SMCommonConfig;
 import com.hexagram2021.sweeper_maid.save.SMSavedData;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -21,11 +22,13 @@ public class SMCommands {
 		return Commands.literal("sweepermaid").then(
 				Commands.literal("dustbin").requires(stack -> stack.hasPermission(SMCommonConfig.PERMISSION_LEVEL_DUSTBIN.get()))
 						.executes(context -> dustbin(context.getSource().getPlayer(), 0)) // default the first dustbin
+						.then(
+								Commands.argument("index", IntegerArgumentType.integer(0))
+										.executes(context -> dustbin(context.getSource().getPlayer(), IntegerArgumentType.getInteger(context, "index")))
+						)
 		).then(
-				Commands.literal("dustbin").then(
-						Commands.argument("index", IntegerArgumentType.integer(0))
-								.executes(context -> dustbin(context.getSource().getPlayer(), IntegerArgumentType.getInteger(context, "index")))
-				)
+				Commands.literal("clean").requires(stack -> stack.hasPermission(SMCommonConfig.PERMISSION_LEVEL_CLEAN.get()))
+						.executes(context -> clean())
 		);
 	}
 
@@ -52,4 +55,9 @@ public class SMCommands {
             return 0;
         }
     }
+
+	private static int clean() {
+		SweeperMaid.clean.run();
+		return 1;
+	}
 }

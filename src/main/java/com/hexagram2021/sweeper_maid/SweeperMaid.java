@@ -55,9 +55,13 @@ public class SweeperMaid {
 
 	private static int ITEM_OVERLOAD_THRESHOLD;
 
+	public static Runnable clean = () -> {};
+
 	public SweeperMaid() {
 		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, SMCommonConfig.getConfig());
 		NeoForge.EVENT_BUS.register(this);
+
+		clean = () -> this.sweepTickRemain = 0;
 	}
 
 	private int sweepTickRemain = 0;
