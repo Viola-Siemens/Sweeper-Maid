@@ -41,7 +41,7 @@ public class SMCommands {
             player.openMenu(new MenuProvider() {
                 @Override
                 public Component getDisplayName() {
-                    return Component.literal("Dustbin");
+                    return Component.literal(SMCommonConfig.DUSTBIN_NAME.get() + index);
                 }
 
                 @Override
@@ -50,10 +50,9 @@ public class SMCommands {
                 }
             });
             return 1;
-        } else {
-            player.sendSystemMessage(Component.literal(SMCommonConfig.MESSAGE_WRONG_DUSTBIN.get()));
-            return 0;
         }
+		player.sendSystemMessage(Component.literal(SMCommonConfig.MESSAGE_WRONG_DUSTBIN.get()));
+		return 0;
     }
 
 	private static int clean() {
