@@ -88,10 +88,20 @@ tasks.withType(ProcessResources).configureEach {
     }
 }
 
+task sourceJar(type: Jar) {
+    archiveClassifier.set('sources')
+    from sourceSets.main.allJava
+}
+
+artifacts {
+    archives sourceJar
+}
+
 publishing {
     publications {
-        register('mavenJava', MavenPublication) {
-            from components.java
+        mavenJava(MavenPublication) {
+            artifact jar
+            artifact sourceJar
         }
     }
     repositories {
