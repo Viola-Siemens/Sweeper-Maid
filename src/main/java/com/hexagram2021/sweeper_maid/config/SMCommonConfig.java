@@ -14,7 +14,8 @@ public final class SMCommonConfig {
 
 	public static final ModConfigSpec.IntValue ITEM_SWEEP_INTERVAL;
 	public static final ModConfigSpec.ConfigValue<List<? extends String>> EXTRA_ENTITY_TYPES;
-	public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_BLACKLIST; // 黑名单物品配置
+	public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_WHITELIST;
+	public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_BLACKLIST;
 	public static final ModConfigSpec.ConfigValue<String> MESSAGE_BEFORE_SWEEP_15_30_60;
 	public static final ModConfigSpec.ConfigValue<String> MESSAGE_BEFORE_SWEEP_1_10;
 	public static final ModConfigSpec.ConfigValue<String> MESSAGE_AFTER_SWEEP;
@@ -42,10 +43,15 @@ public final class SMCommonConfig {
 				.defineListAllowEmpty("EXTRA_ENTITY_TYPES", List.of(
 						new ResourceLocation("arrow").toString(), new ResourceLocation("spectral_arrow").toString(), new ResourceLocation("oceanworld", "drip_ice").toString()
 				), o -> o instanceof String str && ResourceLocation.isValidResourceLocation(str));
-		// 添加黑名单配置
+		ITEM_WHITELIST = BUILDER.comment("Items in this list will never be cleaned and will be kept as item entity until it disappear.")
+				.defineListAllowEmpty("ITEM_WHITELIST", List.of(
+						new ResourceLocation(ResourceLocation.DEFAULT_NAMESPACE, "nether_star").toString(),
+						new ResourceLocation(ResourceLocation.DEFAULT_NAMESPACE, "heavy_core").toString()
+				), o -> o instanceof String str && ResourceLocation.isValidResourceLocation(str));
 		ITEM_BLACKLIST = BUILDER.comment("Items in this list will be cleaned but not added to the dustbin.")
 				.defineListAllowEmpty("ITEM_BLACKLIST", List.of(
-						new ResourceLocation("minecraft", "cobblestone").toString(), new ResourceLocation("minecraft", "sand").toString()
+						new ResourceLocation(ResourceLocation.DEFAULT_NAMESPACE, "cobblestone").toString(),
+						new ResourceLocation(ResourceLocation.DEFAULT_NAMESPACE, "sand").toString()
 				), o -> o instanceof String str && ResourceLocation.isValidResourceLocation(str));
 		MESSAGE_BEFORE_SWEEP_15_30_60 = BUILDER.comment("What message will be sent to players when there's 15s, 30s and 60s left to sweep. \"$1\" stands for the remaining time (in seconds).")
 				.define("MESSAGE_BEFORE_SWEEP_15_30_60", "[Sweeper Maid]: I'll sweep the floor in $1 seconds!");
