@@ -5,28 +5,93 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.List;
 
+/**
+ * 扫帚女仆模组通用配置类喵~
+ * <p>
+ * 定义所有可配置选项，包括：
+ * <ul>
+ *     <li>清理间隔和时间设置喵~</li>
+ *     <li>物品白名单和黑名单喵~</li>
+ *     <li>额外实体类型喵~</li>
+ *     <li>消息模板和提示语喵~</li>
+ *     <li>垃圾箱数量和权限等级喵~</li>
+ *     <li>物品过载阈值和警告消息喵~</li>
+ * </ul>
+ * </p>
+ *
+ * @author liudongyu
+ */
+@SuppressWarnings("java:S4968")
 public final class SMCommonConfig {
+	/**
+	 * 私有构造方法，防止实例化喵~
+	 */
 	private SMCommonConfig() {
 	}
 
 	private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 	private static final ModConfigSpec SPEC;
 
+	/**
+	 * 物品清理间隔（秒），0 表示禁用自动清理喵~
+	 */
 	public static final ModConfigSpec.IntValue ITEM_SWEEP_INTERVAL;
-	public static final ModConfigSpec.ConfigValue<List<? extends String>> EXTRA_ENTITY_TYPES;
-	public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_WHITELIST;
-	public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_BLACKLIST;
-	public static final ModConfigSpec.ConfigValue<String> MESSAGE_BEFORE_SWEEP_15_30_60;
-	public static final ModConfigSpec.ConfigValue<String> MESSAGE_BEFORE_SWEEP_1_10;
-	public static final ModConfigSpec.ConfigValue<String> MESSAGE_AFTER_SWEEP;
-	public static final ModConfigSpec.ConfigValue<String> MESSAGE_WRONG_DUSTBIN;
-	public static final ModConfigSpec.ConfigValue<String> DUSTBIN_NAME;
-	public static final ModConfigSpec.IntValue DUSTBIN_COUNT;
-	public static final ModConfigSpec.ConfigValue<String> CHAT_MESSAGE_AFTER_SWEEP;
-	public static final ModConfigSpec.IntValue PERMISSION_LEVEL_DUSTBIN;
-	public static final ModConfigSpec.IntValue PERMISSION_LEVEL_CLEAN;
+	/**
+	 * 物品过载阈值，超过此数量的区块将发送警告喵~
+	 */
 	public static final ModConfigSpec.IntValue ITEM_OVERLOAD_THRESHOLD;
+	/**
+	 * 物品过载警告消息模板喵~
+	 */
 	public static final ModConfigSpec.ConfigValue<String> OVERLOAD_MESSAGE;
+	/**
+	 * 需要清理的额外实体类型列表喵~
+	 */
+	public static final ModConfigSpec.ConfigValue<List<? extends String>> EXTRA_ENTITY_TYPES;
+	/**
+	 * 物品白名单，列表中的物品不会被清理喵~
+	 */
+	public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_WHITELIST;
+	/**
+	 * 物品黑名单，列表中的物品会被清理但不存入垃圾箱喵~
+	 */
+	public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_BLACKLIST;
+	/**
+	 * 清理前 15/30/60 秒的提示消息模板喵~
+	 */
+	public static final ModConfigSpec.ConfigValue<String> MESSAGE_BEFORE_SWEEP_15_30_60;
+	/**
+	 * 清理前 1-10 秒的提示消息模板喵~
+	 */
+	public static final ModConfigSpec.ConfigValue<String> MESSAGE_BEFORE_SWEEP_1_10;
+	/**
+	 * 清理完成后的 ActionBar 消息模板喵~
+	 */
+	public static final ModConfigSpec.ConfigValue<String> MESSAGE_AFTER_SWEEP;
+	/**
+	 * 打开错误垃圾箱时的提示消息模板喵~
+	 */
+	public static final ModConfigSpec.ConfigValue<String> MESSAGE_WRONG_DUSTBIN;
+	/**
+	 * 垃圾箱名称前缀喵~
+	 */
+	public static final ModConfigSpec.ConfigValue<String> DUSTBIN_NAME;
+	/**
+	 * 垃圾箱数量喵~
+	 */
+	public static final ModConfigSpec.IntValue DUSTBIN_COUNT;
+	/**
+	 * 清理完成后的聊天消息模板喵~
+	 */
+	public static final ModConfigSpec.ConfigValue<String> CHAT_MESSAGE_AFTER_SWEEP;
+	/**
+	 * 打开垃圾箱所需的权限等级喵~
+	 */
+	public static final ModConfigSpec.IntValue PERMISSION_LEVEL_DUSTBIN;
+	/**
+	 * 立即清理所需的权限等级喵~
+	 */
+	public static final ModConfigSpec.IntValue PERMISSION_LEVEL_CLEAN;
 
 	static {
 		BUILDER.push("sweeper_maid-common-config");
@@ -71,6 +136,11 @@ public final class SMCommonConfig {
 		SPEC = BUILDER.build();
 	}
 
+	/**
+	 * 获取配置规范实例喵~
+	 *
+	 * @return 配置规范对象喵~
+	 */
 	public static ModConfigSpec getConfig() {
 		return SPEC;
 	}

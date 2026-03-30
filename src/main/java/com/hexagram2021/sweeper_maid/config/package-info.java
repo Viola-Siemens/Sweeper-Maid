@@ -1,3 +1,9 @@
+/**
+ * 扫帚女仆模组配置包喵~
+ * <p>
+ * 包含模组配置定义和加载逻辑喵~
+ * </p>
+ */
 @FieldsAreNonnullByDefault
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
