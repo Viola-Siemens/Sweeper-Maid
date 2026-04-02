@@ -5,41 +5,142 @@ import net.minecraftforge.common.ForgeConfigSpec;
 
 import java.util.List;
 
+/**
+ * 清洁女仆模组通用配置类喵~
+ * <p>
+ * 定义所有可配置选项，包括：
+ * <ul>
+ *     <li>清理间隔和时间设置喵~</li>
+ *     <li>物品白名单和黑名单喵~</li>
+ *     <li>额外实体类型喵~</li>
+ *     <li>消息模板和提示语喵~</li>
+ *     <li>垃圾箱数量和权限等级喵~</li>
+ *     <li>物品过载阈值和警告消息喵~</li>
+ * </ul>
+ * </p>
+ *
+ * @author liudongyu
+ */
+@SuppressWarnings("java:S4968")
 public final class SMCommonConfig {
+	/**
+	 * 私有构造方法，防止实例化喵~
+	 */
 	private SMCommonConfig() {
 	}
 
 	private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 	private static final ForgeConfigSpec SPEC;
 
+	/**
+	 * 物品清理间隔（秒），0 表示禁用自动清理喵~
+	 */
 	public static final ForgeConfigSpec.IntValue ITEM_SWEEP_INTERVAL;
+	/**
+	 * 物品过载阈值，超过此数量的区块将发送警告喵~
+	 */
+	public static final ForgeConfigSpec.IntValue ITEM_OVERLOAD_THRESHOLD;
+	/**
+	 * 物品过载警告消息模板喵~
+	 */
+	public static final ForgeConfigSpec.ConfigValue<String> OVERLOAD_MESSAGE;
+	/**
+	 * 需要清理的额外实体类型列表喵~
+	 */
 	public static final ForgeConfigSpec.ConfigValue<List<? extends String>> EXTRA_ENTITY_TYPES;
+	/**
+	 * 物品白名单，列表中的物品不会被清理喵~
+	 */
+	public static final ForgeConfigSpec.ConfigValue<List<? extends String>> ITEM_WHITELIST;
+	/**
+	 * 物品黑名单，列表中的物品会被清理但不存入垃圾箱喵~
+	 */
+	public static final ForgeConfigSpec.ConfigValue<List<? extends String>> ITEM_BLACKLIST;
+	/**
+	 * 清理前 15/30/60 秒的提示消息模板喵~
+	 */
 	public static final ForgeConfigSpec.ConfigValue<String> MESSAGE_BEFORE_SWEEP_15_30_60;
+	/**
+	 * 清理前 1-10 秒的提示消息模板喵~
+	 */
 	public static final ForgeConfigSpec.ConfigValue<String> MESSAGE_BEFORE_SWEEP_1_10;
+	/**
+	 * 清理完成后的 ActionBar 消息模板喵~
+	 */
 	public static final ForgeConfigSpec.ConfigValue<String> MESSAGE_AFTER_SWEEP;
+	/**
+	 * 打开错误垃圾箱时的提示消息模板喵~
+	 */
+	public static final ForgeConfigSpec.ConfigValue<String> MESSAGE_WRONG_DUSTBIN;
+	/**
+	 * 垃圾箱名称前缀喵~
+	 */
+	public static final ForgeConfigSpec.ConfigValue<String> DUSTBIN_NAME;
+	/**
+	 * 垃圾箱数量喵~
+	 */
+	public static final ForgeConfigSpec.IntValue DUSTBIN_COUNT;
+	/**
+	 * 清理完成后的聊天消息模板喵~
+	 */
 	public static final ForgeConfigSpec.ConfigValue<String> CHAT_MESSAGE_AFTER_SWEEP;
+	/**
+	 * 打开垃圾箱所需的权限等级喵~
+	 */
 	public static final ForgeConfigSpec.IntValue PERMISSION_LEVEL_DUSTBIN;
+	/**
+	 * 立即清理所需的权限等级喵~
+	 */
+	public static final ForgeConfigSpec.IntValue PERMISSION_LEVEL_CLEAN;
 
 	static {
 		BUILDER.push("sweeper_maid-common-config");
-		ITEM_SWEEP_INTERVAL = BUILDER.comment("If 0, disable item sweeping. If > 0, cool down (in seconds) between two item sweeping.").defineInRange("ITEM_SWEEP_INTERVAL", 600, 0, 360000);
+		ITEM_SWEEP_INTERVAL = BUILDER.comment("If 0, disable item sweeping. If > 0, cool down (in seconds) between two item sweeping.")
+				.defineInRange("ITEM_SWEEP_INTERVAL", 600, 0, 360000);
+
+		ITEM_OVERLOAD_THRESHOLD = BUILDER.comment("Item overload in a chunk. If exceeded, a warning message will be sent.")
+				.defineInRange("ITEM_OVERLOAD_THRESHOLD", 640, 1, 6400000);
+
+		OVERLOAD_MESSAGE = BUILDER.comment("Message to be sent when item overload threshold is exceeded. \"$1\" stands for chunk X position, \"$2\" stands for chunk Z position, and \"$3\" stands for item count.")
+				.define("OVERLOAD_MESSAGE", "[Sweeper Maid]: The number of dropped items in the region ($1, $2) is too large, with a total of $3 items!");
+
 		EXTRA_ENTITY_TYPES = BUILDER.comment("Other entities of types will be killed when cleaning, e.g. arrows. You can also kill mobs or even players by setting this.")
 				.defineListAllowEmpty("EXTRA_ENTITY_TYPES", List.of(
 						new ResourceLocation("arrow").toString(), new ResourceLocation("spectral_arrow").toString(), new ResourceLocation("oceanworld", "drip_ice").toString()
+				), o -> o instanceof String str && ResourceLocation.isValidResourceLocation(str));
+		ITEM_WHITELIST = BUILDER.comment("Items in this list will never be cleaned and will be kept as item entity until it disappear.")
+				.defineListAllowEmpty("ITEM_WHITELIST", List.of(
+						new ResourceLocation(ResourceLocation.DEFAULT_NAMESPACE, "nether_star").toString(),
+						new ResourceLocation(ResourceLocation.DEFAULT_NAMESPACE, "heavy_core").toString()
+				), o -> o instanceof String str && ResourceLocation.isValidResourceLocation(str));
+		ITEM_BLACKLIST = BUILDER.comment("Items in this list will be cleaned but not added to the dustbin.")
+				.defineListAllowEmpty("ITEM_BLACKLIST", List.of(
+						new ResourceLocation(ResourceLocation.DEFAULT_NAMESPACE, "cobblestone").toString(),
+						new ResourceLocation(ResourceLocation.DEFAULT_NAMESPACE, "sand").toString()
 				), o -> o instanceof String str && ResourceLocation.isValidResourceLocation(str));
 		MESSAGE_BEFORE_SWEEP_15_30_60 = BUILDER.comment("What message will be sent to players when there's 15s, 30s and 60s left to sweep. \"$1\" stands for the remaining time (in seconds).")
 				.define("MESSAGE_BEFORE_SWEEP_15_30_60", "[Sweeper Maid]: I'll sweep the floor in $1 seconds!");
 		MESSAGE_BEFORE_SWEEP_1_10 = BUILDER.comment("What message will be sent to players when there's 1s~10s left to sweep. \"$1\" stands for the remaining time (in seconds).")
 				.define("MESSAGE_BEFORE_SWEEP_1_10", "[Sweeper Maid]: I'll sweep the floor in $1 seconds!");
-		MESSAGE_AFTER_SWEEP = BUILDER.comment("What message will be sent to players after a sweep. \"$1\" stands for the number of killed dropped items, and \"$2\" stands for the number of killed entities.")
-				.define("MESSAGE_AFTER_SWEEP", "[Sweeper Maid]: $1 dropped items and $2 unnecessary entities are cleaned during this sweeping.");
+		MESSAGE_AFTER_SWEEP = BUILDER.comment("What message will be sent to players after a sweep. \"$1\" stands for the number of killed dropped items, \"$2\" stands for the number of killed entities, and \"$3\" stands for the number of blacklisted items.")
+				.define("MESSAGE_AFTER_SWEEP", "[Sweeper Maid]: $1 dropped items, $2 unnecessary entities and $3 blacklist items are cleaned during this sweeping.");
+		MESSAGE_WRONG_DUSTBIN = BUILDER.comment("What message will be sent to players when open a wrong dustbin.")
+				.define("MESSAGE_WRONG_DUSTBIN", "[Sweeper Maid]: Wrong dustbin.");
+		DUSTBIN_NAME = BUILDER.comment("Name of dustbins.").define("DUSTBIN_NAME", "Dustbin ");
+		DUSTBIN_COUNT = BUILDER.comment("Count of dustbins").defineInRange("DUSTBIN_COUNT", 8, 1, 64);
 		CHAT_MESSAGE_AFTER_SWEEP = BUILDER.comment("What chat message will be sent to players after a sweep. Command will be appended to the end of the chat message.")
-				.define("CHAT_MESSAGE_AFTER_SWEEP", "[Sweeper Maid]: Anything's missing? Let's checkout the dustbin: ");
+				.define("CHAT_MESSAGE_AFTER_SWEEP", "[Sweeper Maid]: Anything's missing? Let's checkout the dustbin:");
 		PERMISSION_LEVEL_DUSTBIN = BUILDER.comment("Permission level of a player to open the dustbin.").defineInRange("PERMISSION_LEVEL_DUSTBIN", 0, 0, 4);
+		PERMISSION_LEVEL_CLEAN = BUILDER.comment("Permission level of a player to clean immediately.").defineInRange("PERMISSION_LEVEL_CLEAN", 2, 0, 4);
 		BUILDER.pop();
 		SPEC = BUILDER.build();
 	}
 
+	/**
+	 * 获取配置规范实例喵~
+	 *
+	 * @return 配置规范对象喵~
+	 */
 	public static ForgeConfigSpec getConfig() {
 		return SPEC;
 	}
