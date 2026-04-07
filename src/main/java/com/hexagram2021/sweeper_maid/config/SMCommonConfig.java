@@ -23,6 +23,8 @@ import java.util.List;
  */
 @SuppressWarnings("java:S4968")
 public final class SMCommonConfig {
+	private static final String REGISTRY_NAME_MATCHER = "([a-z0-9_.-]+:[a-z0-9_/.-]+)";
+
 	/**
 	 * 私有构造方法，防止实例化喵~
 	 */
@@ -106,18 +108,20 @@ public final class SMCommonConfig {
 
 		EXTRA_ENTITY_TYPES = BUILDER.comment("Other entities of types will be killed when cleaning, e.g. arrows. You can also kill mobs or even players by setting this.")
 				.defineListAllowEmpty("EXTRA_ENTITY_TYPES", List.of(
-						new ResourceLocation("arrow").toString(), new ResourceLocation("spectral_arrow").toString(), new ResourceLocation("oceanworld", "drip_ice").toString()
-				), o -> o instanceof String str && ResourceLocation.isValidResourceLocation(str));
+						ResourceLocation.withDefaultNamespace("arrow").toString(),
+						ResourceLocation.withDefaultNamespace("spectral_arrow").toString(),
+						ResourceLocation.fromNamespaceAndPath("oceanworld", "drip_ice").toString()
+				), () -> "minecraft:zombie", o -> o instanceof String str && str.matches(REGISTRY_NAME_MATCHER));
 		ITEM_WHITELIST = BUILDER.comment("Items in this list will never be cleaned and will be kept as item entity until it disappear.")
 				.defineListAllowEmpty("ITEM_WHITELIST", List.of(
-						new ResourceLocation(ResourceLocation.DEFAULT_NAMESPACE, "nether_star").toString(),
-						new ResourceLocation(ResourceLocation.DEFAULT_NAMESPACE, "heavy_core").toString()
-				), o -> o instanceof String str && ResourceLocation.isValidResourceLocation(str));
+						ResourceLocation.withDefaultNamespace("nether_star").toString(),
+						ResourceLocation.withDefaultNamespace("heavy_core").toString()
+				), () -> "minecraft:dirt", o -> o instanceof String str && str.matches(REGISTRY_NAME_MATCHER));
 		ITEM_BLACKLIST = BUILDER.comment("Items in this list will be cleaned but not added to the dustbin.")
 				.defineListAllowEmpty("ITEM_BLACKLIST", List.of(
-						new ResourceLocation(ResourceLocation.DEFAULT_NAMESPACE, "cobblestone").toString(),
-						new ResourceLocation(ResourceLocation.DEFAULT_NAMESPACE, "sand").toString()
-				), o -> o instanceof String str && ResourceLocation.isValidResourceLocation(str));
+						ResourceLocation.withDefaultNamespace("cobblestone").toString(),
+						ResourceLocation.withDefaultNamespace("sand").toString()
+				), () -> "minecraft:dirt", o -> o instanceof String str && str.matches(REGISTRY_NAME_MATCHER));
 		MESSAGE_BEFORE_SWEEP_15_30_60 = BUILDER.comment("What message will be sent to players when there's 15s, 30s and 60s left to sweep. \"$1\" stands for the remaining time (in seconds).")
 				.define("MESSAGE_BEFORE_SWEEP_15_30_60", "[Sweeper Maid]: I'll sweep the floor in $1 seconds!");
 		MESSAGE_BEFORE_SWEEP_1_10 = BUILDER.comment("What message will be sent to players when there's 1s~10s left to sweep. \"$1\" stands for the remaining time (in seconds).")
