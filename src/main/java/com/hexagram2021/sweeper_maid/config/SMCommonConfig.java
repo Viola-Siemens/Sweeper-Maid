@@ -38,6 +38,10 @@ public final class SMCommonConfig {
 	 * 物品清理间隔（秒），0 表示禁用自动清理喵~
 	 */
 	public static final ModConfigSpec.IntValue ITEM_SWEEP_INTERVAL;
+	// 物品最小存在时间（秒）。存在时间小于此值的掉落物本次不清理，0 表示禁用该保护。
+	public static final ModConfigSpec.IntValue MIN_ITEM_AGE_SECONDS;
+	// 每 tick 处理的实体数量上限。清理会分摊到多个 tick 以避免卡顿，0 表示不限制（单 tick 完成）。
+	public static final ModConfigSpec.IntValue SWEEP_ENTITIES_PER_TICK;
 	/**
 	 * 物品过载阈值，超过此数量的区块将发送警告喵~
 	 */
@@ -99,6 +103,12 @@ public final class SMCommonConfig {
 		BUILDER.push("sweeper_maid-common-config");
 		ITEM_SWEEP_INTERVAL = BUILDER.comment("If 0, disable item sweeping. If > 0, cool down (in seconds) between two item sweeping.")
 				.defineInRange("ITEM_SWEEP_INTERVAL", 600, 0, 360000);
+
+		MIN_ITEM_AGE_SECONDS = BUILDER.comment("Dropped items younger than this age (in seconds) will not be swept, giving players a grace period to pick items up. 0 disables this protection.")
+				.defineInRange("MIN_ITEM_AGE_SECONDS", 5, 0, 3600);
+
+		SWEEP_ENTITIES_PER_TICK = BUILDER.comment("Max entities processed per server tick while a sweep runs; the sweep is spread across ticks to avoid lag spikes. 0 means no limit (finish the whole sweep in a single tick, not recommended).")
+				.defineInRange("SWEEP_ENTITIES_PER_TICK", 200, 0, 1000000);
 
 		ITEM_OVERLOAD_THRESHOLD = BUILDER.comment("Item overload in a chunk. If exceeded, a warning message will be sent.")
 				.defineInRange("ITEM_OVERLOAD_THRESHOLD", 640, 1, 6400000);

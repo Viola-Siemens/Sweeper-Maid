@@ -1,6 +1,5 @@
 package com.hexagram2021.sweeper_maid;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.hexagram2021.sweeper_maid.command.SMCommands;
 import com.hexagram2021.sweeper_maid.config.SMCommonConfig;
@@ -12,6 +11,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.commands.CommandSource;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -23,8 +23,10 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
@@ -43,9 +45,10 @@ import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import javax.annotation.Nullable;
-import java.util.List;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Set;
 
 /**
  * 扫帚女仆模组主类，负责定期清理服务器中的掉落物品和多余实体喵~
@@ -109,6 +112,10 @@ public class SweeperMaid {
 	 */
 	private boolean firstTick = true;
 
+	// 进行中的清理任务；为 null 表示当前没有清理在进行。
+	@Nullable
+	private SweepJob currentJob = null;
+
 	/**
 	 * 注册模组命令事件处理喵~
 	 * <p>
@@ -159,9 +166,16 @@ public class SweeperMaid {
 			this.firstTick = false;
 			this.toSweep = false;
 			SMSavedData.initialize();
+		} else if(this.currentJob != null) {
+			// 分摊执行进行中的清理：每 tick 处理配置数量的实体，全部完成后再统一反馈。
+			if(this.currentJob.process(SMCommonConfig.SWEEP_ENTITIES_PER_TICK.get())) {
+				this.currentJob.finalizeSweep(server);
+				this.currentJob = null;
+			}
 		} else if(this.toSweep) {
+			// 一个清理任务未结束前不会开始下一个，避免并发清理。
 			this.toSweep = false;
-			doSweeping(server);
+			this.currentJob = new SweepJob(server);
 		}
 	}
 
@@ -258,134 +272,157 @@ public class SweeperMaid {
 		}
 	}
 
-	/**
-	 * 执行清理操作喵~
-	 * <p>
-	 * 扫描所有维度的实体，清理掉落物品和额外实体类型，并将物品存入垃圾箱喵~
-	 * 清理完成后向玩家发送统计信息和垃圾箱访问提示喵~
-	 * 检测并警告物品过载的区块喵~
-	 * </p>
-	 *
-	 * @param server 服务器实例喵~
-	 */
-	private static void doSweeping(MinecraftServer server) {
-		SMSavedData instance = SMSavedData.getInstance();
+	// 单次清理任务：创建时对目标实体拍摄快照，随后按配置的每 tick 数量分摊处理，完成后统一反馈结果。
+	private static final class SweepJob {
+		private final SMSavedData instance;
+		private final Registry<Item> itemRegistry;
+		private final Registry<EntityType<?>> entityTypeRegistry;
+		private final Set<String> whitelist;
+		private final Set<String> blacklist;
+		private final Set<String> extraEntityTypes;
+		private final Deque<Entity> queue = new ArrayDeque<>();
+		private final Map<LevelChunk, Map<String, Integer>> chunkItemCounts = Maps.newIdentityHashMap();
+		private int droppedItems = 0;
+		private int extraEntities = 0;
+		private int blacklistedItems = 0;
 
-		AtomicInteger droppedItems = new AtomicInteger();
-		AtomicInteger extraEntities = new AtomicInteger();
-		AtomicInteger blacklistedItems = new AtomicInteger();
-		Map<LevelChunk, Map<String, Integer>> chunkItemCounts = Maps.newIdentityHashMap();
+		private SweepJob(MinecraftServer server) {
+			this.instance = SMSavedData.getInstance();
+			// 将注册表查询与配置列表在任务开始时解析一次，避免逐个实体重复计算。
+			this.itemRegistry = server.registryAccess().registryOrThrow(Registries.ITEM);
+			this.entityTypeRegistry = server.registryAccess().registryOrThrow(Registries.ENTITY_TYPE);
+			this.whitelist = Set.copyOf(SMCommonConfig.ITEM_WHITELIST.get());
+			this.blacklist = Set.copyOf(SMCommonConfig.ITEM_BLACKLIST.get());
+			this.extraEntityTypes = Set.copyOf(SMCommonConfig.EXTRA_ENTITY_TYPES.get());
+			int minItemAgeTicks = SMCommonConfig.MIN_ITEM_AGE_SECONDS.get() * SharedConstants.TICKS_PER_SECOND;
 
-		server.getAllLevels().forEach(serverLevel -> {
-			Iterable<Entity> entities = serverLevel.getAllEntities();
-			List<Entity> killedEntities = Lists.newArrayList();
-
-			for (Entity entity : entities) {
-				checkAndCollectEntity(server, serverLevel, entity, killedEntities, blacklistedItems, instance, droppedItems, chunkItemCounts, extraEntities);
-			}
-
-			killedEntities.forEach(Entity::discard);
-		});
-
-		server.getPlayerList().getPlayers().forEach(player -> {
-			try {
-				player.connection.send(new ClientboundSetActionBarTextPacket(ComponentUtils.updateForEntity(
-						createCommandSourceStack(player, player.level(), player.blockPosition()),
-						Component.literal(SMCommonConfig.MESSAGE_AFTER_SWEEP.get()
-										.replace("$1", droppedItems.toString())
-										.replace("$2", extraEntities.toString())
-										.replace("$3", blacklistedItems.toString()))  // 增加黑名单物品统计
-								.withStyle(ChatFormatting.AQUA),
-						player, 0
-				)));
-			} catch (CommandSyntaxException ignored) {
-				// Ignored
-			}
-		});
-
-
-		// Generate all dustbin messages and links
-		server.getPlayerList().getPlayers().forEach(player -> {
-			MutableComponent message = Component.literal(SMCommonConfig.CHAT_MESSAGE_AFTER_SWEEP.get());
-
-			instance.accessDustbins(dustbins -> {
-				if(dustbins.isEmpty()) {
-					return;
-				}
-				boolean first = true;
-				for (int i = 0; i < dustbins.size(); ++i) {
-					if(SMSavedData.getDustbinContainer(i).isEmpty()) {
-						continue;
-					}
-					if(first) {
-						first = false;
+			// 快照阶段：一次性遍历所有维度的实体，仅登记清理目标的引用，此时不做任何删除。
+			// 遍历结束后才逐 tick 删除，因此不会在遍历实体集合的同时修改它；快照后新掉落的物品保留到下次清理。
+			server.getAllLevels().forEach(serverLevel -> {
+				for (Entity entity : serverLevel.getAllEntities()) {
+					if (entity instanceof ItemEntity itemEntity) {
+						// 存在时间不足的掉落物本次跳过，避免误清玩家刚丢下的物品。
+						if (itemEntity.tickCount >= minItemAgeTicks) {
+							this.queue.add(itemEntity);
+						}
 					} else {
-						message.append(Component.literal(", "));
+						ResourceLocation typeKey = this.entityTypeRegistry.getKey(entity.getType());
+						if (typeKey != null && this.extraEntityTypes.contains(typeKey.toString())) {
+							this.queue.add(entity);
+						}
 					}
-					final int dustbinIndex = i;
-					message.append(Component.literal("[" + SMCommonConfig.DUSTBIN_NAME.get() + dustbinIndex + "]")
-							.withStyle(style -> style.withColor(ChatFormatting.GREEN)
-									.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/sweepermaid dustbin " + dustbinIndex))));
+				}
+			});
+		}
+
+		// 处理至多 budget 个实体；budget 小于等于 0 表示本次处理队列中的全部实体。返回队列是否已清空。
+		private boolean process(int budget) {
+			int limit = budget <= 0 ? Integer.MAX_VALUE : budget;
+			int processed = 0;
+			while (processed < limit && !this.queue.isEmpty()) {
+				Entity entity = this.queue.poll();
+				++processed;
+				// 快照之后实体可能已被拾取或移除，处理前重新校验。
+				if (entity == null || entity.isRemoved()) {
+					continue;
+				}
+				if (entity instanceof ItemEntity itemEntity) {
+					this.collectItem(itemEntity);
+				} else {
+					this.extraEntities += 1;
+					entity.discard();
+				}
+			}
+			return this.queue.isEmpty();
+		}
+
+		// 处理单个掉落物：黑名单物品仅计数不入箱，其余非白名单物品入箱并统计所在区块的过载数量。
+		private void collectItem(ItemEntity itemEntity) {
+			ItemStack itemStack = itemEntity.getItem();
+			ResourceLocation itemKey = this.itemRegistry.getKey(itemStack.getItem());
+			if (itemKey == null) {
+				return;
+			}
+			String item = itemKey.toString();
+			if (this.blacklist.contains(item)) {
+				this.blacklistedItems += itemStack.getCount();
+				itemEntity.discard();
+			} else if (!this.whitelist.contains(item)) {
+				this.instance.addItemToDustbin(itemStack);
+				this.droppedItems += itemStack.getCount();
+				itemEntity.discard();
+
+				LevelChunk chunk = itemEntity.level().getChunkAt(itemEntity.blockPosition());
+				this.chunkItemCounts.computeIfAbsent(chunk, k -> Maps.newHashMap());
+				Map<String, Integer> itemCounts = this.chunkItemCounts.get(chunk);
+				itemCounts.put(item, itemCounts.getOrDefault(item, 0) + itemStack.getCount());
+			}
+		}
+
+		// 清理完成后统一反馈：ActionBar 统计、垃圾箱链接、区块过载警告。
+		private void finalizeSweep(MinecraftServer server) {
+			server.getPlayerList().getPlayers().forEach(player -> {
+				try {
+					player.connection.send(new ClientboundSetActionBarTextPacket(ComponentUtils.updateForEntity(
+							createCommandSourceStack(player, player.level(), player.blockPosition()),
+							Component.literal(SMCommonConfig.MESSAGE_AFTER_SWEEP.get()
+											.replace("$1", String.valueOf(this.droppedItems))
+											.replace("$2", String.valueOf(this.extraEntities))
+											.replace("$3", String.valueOf(this.blacklistedItems)))  // 增加黑名单物品统计
+									.withStyle(ChatFormatting.AQUA),
+							player, 0
+					)));
+				} catch (CommandSyntaxException ignored) {
+					// Ignored
 				}
 			});
 
-			player.sendSystemMessage(message);
-		});
+			// Generate all dustbin messages and links
+			server.getPlayerList().getPlayers().forEach(player -> {
+				MutableComponent message = Component.literal(SMCommonConfig.CHAT_MESSAGE_AFTER_SWEEP.get());
 
-		// Send overload message to players
-		int itemOverloadThreshold = SMCommonConfig.ITEM_OVERLOAD_THRESHOLD.get();
-		chunkItemCounts.forEach((chunk, itemCounts) -> itemCounts.forEach((itemKey, count) -> {
-			if (count > itemOverloadThreshold) {
-				BlockPos chunkPos = chunk.getPos().getWorldPosition();
-				String overloadMessageText = SMCommonConfig.OVERLOAD_MESSAGE.get()
-						.replace("$1", String.valueOf(chunkPos.getX()))
-						.replace("$2", String.valueOf(chunkPos.getZ()))
-						.replace("$3", String.valueOf(count))
-						.replace("$4", itemKey);
-
-				MutableComponent overloadMessage = Component.literal(overloadMessageText).withStyle(ChatFormatting.BLUE);
-
-				broadcastToAdmins(server, overloadMessage);
-			}
-		}));
-
-		instance.setDirty();
-	}
-
-	private static void checkAndCollectEntity(MinecraftServer server, ServerLevel serverLevel, @Nullable Entity entity, List<Entity> killedEntities, AtomicInteger blacklistedItems, SMSavedData instance, AtomicInteger droppedItems, Map<LevelChunk, Map<String, Integer>> chunkItemCounts, AtomicInteger extraEntities) {
-		if (entity instanceof ItemEntity itemEntity) {
-			ItemStack itemStack = itemEntity.getItem();
-			ResourceLocation itemKey = server.registryAccess().registryOrThrow(Registries.ITEM).getKey(itemStack.getItem());
-
-			if (itemKey != null) {
-				String item = itemKey.toString();
-
-				// Make sure each entity will be processed only once.
-				if (!killedEntities.contains(entity)) {
-					if (SMCommonConfig.ITEM_BLACKLIST.get().contains(item)) {
-						blacklistedItems.addAndGet(itemStack.getCount());
-						killedEntities.add(itemEntity);
-					} else if(!SMCommonConfig.ITEM_WHITELIST.get().contains(item)) {
-						instance.addItemToDustbin(itemStack);
-						droppedItems.addAndGet(itemStack.getCount());
-						killedEntities.add(itemEntity);
-
-						LevelChunk chunk = serverLevel.getChunkAt(entity.blockPosition());
-						chunkItemCounts.computeIfAbsent(chunk, k -> Maps.newHashMap());
-						Map<String, Integer> itemCounts = chunkItemCounts.get(chunk);
-						itemCounts.put(item, itemCounts.getOrDefault(item, 0) + itemStack.getCount());
+				this.instance.accessDustbins(dustbins -> {
+					if(dustbins.isEmpty()) {
+						return;
 					}
+					boolean first = true;
+					for (int i = 0; i < dustbins.size(); ++i) {
+						if(SMSavedData.getDustbinContainer(i).isEmpty()) {
+							continue;
+						}
+						if(first) {
+							first = false;
+						} else {
+							message.append(Component.literal(", "));
+						}
+						final int dustbinIndex = i;
+						message.append(Component.literal("[" + SMCommonConfig.DUSTBIN_NAME.get() + dustbinIndex + "]")
+								.withStyle(style -> style.withColor(ChatFormatting.GREEN)
+										.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/sweepermaid dustbin " + dustbinIndex))));
+					}
+				});
+
+				player.sendSystemMessage(message);
+			});
+
+			// Send overload message to players
+			int itemOverloadThreshold = SMCommonConfig.ITEM_OVERLOAD_THRESHOLD.get();
+			this.chunkItemCounts.forEach((chunk, itemCounts) -> itemCounts.forEach((itemKey, count) -> {
+				if (count > itemOverloadThreshold) {
+					BlockPos chunkPos = chunk.getPos().getWorldPosition();
+					String overloadMessageText = SMCommonConfig.OVERLOAD_MESSAGE.get()
+							.replace("$1", String.valueOf(chunkPos.getX()))
+							.replace("$2", String.valueOf(chunkPos.getZ()))
+							.replace("$3", String.valueOf(count))
+							.replace("$4", itemKey);
+
+					MutableComponent overloadMessage = Component.literal(overloadMessageText).withStyle(ChatFormatting.BLUE);
+
+					broadcastToAdmins(server, overloadMessage);
 				}
-			}
-		} else if(entity != null) {
-			ResourceLocation typeKey = server.registryAccess().registryOrThrow(Registries.ENTITY_TYPE).getKey(entity.getType());
-			if (typeKey != null) {
-				String type = typeKey.toString();
-				if (SMCommonConfig.EXTRA_ENTITY_TYPES.get().contains(type)) {
-					extraEntities.incrementAndGet();
-					killedEntities.add(entity);
-				}
-			}
+			}));
+
+			this.instance.setDirty();
 		}
 	}
 }
