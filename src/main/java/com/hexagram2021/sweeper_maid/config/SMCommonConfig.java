@@ -1,6 +1,7 @@
 package com.hexagram2021.sweeper_maid.config;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Rarity;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.List;
@@ -82,14 +83,34 @@ public final class SMCommonConfig {
 	 * 垃圾箱名称前缀喵~
 	 */
 	public static final ModConfigSpec.ConfigValue<String> DUSTBIN_NAME;
-	/**
-	 * 垃圾箱数量喵~
-	 */
-	public static final ModConfigSpec.IntValue DUSTBIN_COUNT;
+	// 每个轮换代包含的垃圾箱数量（x）。
+	public static final ModConfigSpec.IntValue DUSTBINS_PER_ROTATION;
+	// 轮换代数量（y），同时是物品被自动清理前可被找回的清理次数（保护期）。
+	public static final ModConfigSpec.IntValue ROTATION_COUNT;
+	// 是否启用回收箱：清理时受保护的物品会被移入不参与轮换的回收箱，而非被删除。
+	public static final ModConfigSpec.BooleanValue ENABLE_RECYCLE;
+	// 回收箱名称。
+	public static final ModConfigSpec.ConfigValue<String> RECYCLE_NAME;
+	// 稀有度保护阈值：稀有度不低于该值的物品会被移入回收箱。
+	public static final ModConfigSpec.EnumValue<Rarity> RECYCLE_PROTECT_RARITY;
+	// 是否保护带附魔的物品。
+	public static final ModConfigSpec.BooleanValue RECYCLE_PROTECT_ENCHANTED;
+	// 是否保护带自定义名称的物品。
+	public static final ModConfigSpec.BooleanValue RECYCLE_PROTECT_NAMED;
+	// 额外始终受保护的物品清单。
+	public static final ModConfigSpec.ConfigValue<List<? extends String>> RECYCLE_PROTECT_ITEMS;
+	// 手动清空垃圾箱所需的权限等级。
+	public static final ModConfigSpec.IntValue PERMISSION_LEVEL_EMPTY;
 	/**
 	 * 清理完成后的聊天消息模板喵~
 	 */
 	public static final ModConfigSpec.ConfigValue<String> CHAT_MESSAGE_AFTER_SWEEP;
+	// 有物品被移入回收箱时的提示消息模板（$1 为移入数量）。
+	public static final ModConfigSpec.ConfigValue<String> MESSAGE_RECYCLE_MOVED;
+	// 下次清理将被清空的垃圾箱提示前缀，其后附加垃圾箱区间（如 Dustbin 0~7）。
+	public static final ModConfigSpec.ConfigValue<String> MESSAGE_EMPTIED_NEXT_SWEEP;
+	// 手动清空后的反馈消息模板（$1 为被清空的目标名称）。
+	public static final ModConfigSpec.ConfigValue<String> MESSAGE_DUSTBIN_EMPTIED;
 	/**
 	 * 打开垃圾箱所需的权限等级喵~
 	 */
@@ -141,11 +162,30 @@ public final class SMCommonConfig {
 		MESSAGE_WRONG_DUSTBIN = BUILDER.comment("What message will be sent to players when open a wrong dustbin.")
 				.define("MESSAGE_WRONG_DUSTBIN", "[Sweeper Maid]: Wrong dustbin.");
 		DUSTBIN_NAME = BUILDER.comment("Name of dustbins.").define("DUSTBIN_NAME", "Dustbin ");
-		DUSTBIN_COUNT = BUILDER.comment("Count of dustbins").defineInRange("DUSTBIN_COUNT", 8, 1, 64);
-		CHAT_MESSAGE_AFTER_SWEEP = BUILDER.comment("What chat message will be sent to players after a sweep. Command will be appended to the end of the chat message.")
+		DUSTBINS_PER_ROTATION = BUILDER.comment("Number of dustbins in each rotation (x). Total dustbins = DUSTBINS_PER_ROTATION * ROTATION_COUNT.")
+				.defineInRange("DUSTBINS_PER_ROTATION", 8, 1, 64);
+		ROTATION_COUNT = BUILDER.comment("Number of rotations (y). Also the number of sweeps that swept items stay recoverable before being auto-cleared. 1 clears the previous sweep's items on every sweep.")
+				.defineInRange("ROTATION_COUNT", 2, 1, 64);
+		ENABLE_RECYCLE = BUILDER.comment("If true, protected items (see RECYCLE_PROTECT_* options) are moved to a non-rotating recycle bin before a dustbin is auto-cleared, instead of being deleted.")
+				.define("ENABLE_RECYCLE", true);
+		RECYCLE_NAME = BUILDER.comment("Name of the recycle bin.").define("RECYCLE_NAME", "Recycle");
+		RECYCLE_PROTECT_RARITY = BUILDER.comment("Items whose rarity is at or above this value are protected. One of COMMON, UNCOMMON, RARE, EPIC.")
+				.defineEnum("RECYCLE_PROTECT_RARITY", Rarity.RARE);
+		RECYCLE_PROTECT_ENCHANTED = BUILDER.comment("If true, enchanted items are protected.").define("RECYCLE_PROTECT_ENCHANTED", true);
+		RECYCLE_PROTECT_NAMED = BUILDER.comment("If true, items with a custom name are protected.").define("RECYCLE_PROTECT_NAMED", true);
+		RECYCLE_PROTECT_ITEMS = BUILDER.comment("Items in this list are always protected (moved to the recycle bin).")
+				.defineListAllowEmpty("RECYCLE_PROTECT_ITEMS", List.of(), () -> "minecraft:nether_star", o -> o instanceof String str && str.matches(REGISTRY_NAME_MATCHER));
+		CHAT_MESSAGE_AFTER_SWEEP = BUILDER.comment("What chat message will be sent to players after a sweep. Links to this sweep's non-empty dustbins (and the recycle bin if non-empty) are appended.")
 				.define("CHAT_MESSAGE_AFTER_SWEEP", "[Sweeper Maid]: Anything's missing? Let's checkout the dustbin:");
+		MESSAGE_RECYCLE_MOVED = BUILDER.comment("Message sent when protected items are moved to the recycle bin during a sweep (only shown when at least one item is moved). \"$1\" is the number of items moved.")
+				.define("MESSAGE_RECYCLE_MOVED", "[Sweeper Maid]: $1 protected item(s) were moved to the recycle bin.");
+		MESSAGE_EMPTIED_NEXT_SWEEP = BUILDER.comment("Prefix of the message warning which dustbins will be emptied on the next sweep. A dustbin range (e.g. Dustbin 0~7) is appended.")
+				.define("MESSAGE_EMPTIED_NEXT_SWEEP", "[Sweeper Maid]: Will be emptied next sweep (grab your items!):");
+		MESSAGE_DUSTBIN_EMPTIED = BUILDER.comment("Feedback after manually emptying. \"$1\" is the emptied target (dustbin name or the recycle bin name). If any protected items were moved, a separate MESSAGE_RECYCLE_MOVED line follows.")
+				.define("MESSAGE_DUSTBIN_EMPTIED", "[Sweeper Maid]: $1 has been emptied.");
 		PERMISSION_LEVEL_DUSTBIN = BUILDER.comment("Permission level of a player to open the dustbin.").defineInRange("PERMISSION_LEVEL_DUSTBIN", 0, 0, 4);
 		PERMISSION_LEVEL_CLEAN = BUILDER.comment("Permission level of a player to clean immediately.").defineInRange("PERMISSION_LEVEL_CLEAN", 2, 0, 4);
+		PERMISSION_LEVEL_EMPTY = BUILDER.comment("Permission level of a player to empty dustbins manually.").defineInRange("PERMISSION_LEVEL_EMPTY", 2, 0, 4);
 		BUILDER.pop();
 		SPEC = BUILDER.build();
 	}

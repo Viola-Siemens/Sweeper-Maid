@@ -25,6 +25,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -107,10 +108,6 @@ public class SweeperMaid {
 	 * 是否需要在下一刻执行清理喵~
 	 */
 	private boolean toSweep = false;
-	/**
-	 * 是否为首次刻 tick 喵~
-	 */
-	private boolean firstTick = true;
 
 	// 进行中的清理任务；为 null 表示当前没有清理在进行。
 	@Nullable
@@ -162,11 +159,7 @@ public class SweeperMaid {
 		if(SMCommonConfig.ITEM_SWEEP_INTERVAL.get() == 0) {
 			return;
 		}
-		if(this.firstTick) {
-			this.firstTick = false;
-			this.toSweep = false;
-			SMSavedData.initialize();
-		} else if(this.currentJob != null) {
+		if(this.currentJob != null) {
 			// 分摊执行进行中的清理：每 tick 处理配置数量的实体，全部完成后再统一反馈。
 			if(this.currentJob.process(SMCommonConfig.SWEEP_ENTITIES_PER_TICK.get())) {
 				this.currentJob.finalizeSweep(server);
@@ -194,6 +187,12 @@ public class SweeperMaid {
 		if (!world.isClientSide) {
 			SMSavedData worldData = world.getDataStorage().computeIfAbsent(new SavedData.Factory<>(SMSavedData::new, SMSavedData::new), SMSavedData.SAVED_DATA_NAME);
 			SMSavedData.setInstance(worldData);
+			// 每次服务器启动（含单人每次进入世界）都按配置初始化垃圾箱并重置清理调度，
+			// 避免同一 JVM 内加载第二个世界时沿用上一个世界的状态、导致新世界的垃圾箱未初始化。
+			SMSavedData.initialize();
+			this.sweepTickRemain = SMCommonConfig.ITEM_SWEEP_INTERVAL.get() * SharedConstants.TICKS_PER_SECOND;
+			this.toSweep = false;
+			this.currentJob = null;
 		}
 	}
 
@@ -285,6 +284,7 @@ public class SweeperMaid {
 		private int droppedItems = 0;
 		private int extraEntities = 0;
 		private int blacklistedItems = 0;
+		private int rescuedToRecycle = 0;
 
 		private SweepJob(MinecraftServer server) {
 			this.instance = SMSavedData.getInstance();
@@ -313,6 +313,9 @@ public class SweeperMaid {
 					}
 				}
 			});
+
+			// 开始清理前，把即将复用的轮换代中的受保护物品移入回收箱并清空该代，供本次清理写入。
+			this.rescuedToRecycle = this.instance.beginSweepGeneration();
 		}
 
 		// 处理至多 budget 个实体；budget 小于等于 0 表示本次处理队列中的全部实体。返回队列是否已清空。
@@ -348,7 +351,7 @@ public class SweeperMaid {
 				this.blacklistedItems += itemStack.getCount();
 				itemEntity.discard();
 			} else if (!this.whitelist.contains(item)) {
-				this.instance.addItemToDustbin(itemStack);
+				this.instance.addItemToActiveGeneration(itemStack);
 				this.droppedItems += itemStack.getCount();
 				itemEntity.discard();
 
@@ -357,6 +360,36 @@ public class SweeperMaid {
 				Map<String, Integer> itemCounts = this.chunkItemCounts.get(chunk);
 				itemCounts.put(item, itemCounts.getOrDefault(item, 0) + itemStack.getCount());
 			}
+		}
+
+		// 构建“前缀 + 非空垃圾箱链接”消息：只列出范围内非空的垃圾箱，链接指向对应垃圾箱。
+		private MutableComponent nonEmptyBinLinks(String prefix, int startBin, int count) {
+			MutableComponent message = Component.literal(prefix);
+			int total = SMSavedData.totalDustbinCount();
+			for (int i = startBin; i < startBin + count && i < total; ++i) {
+				if (SMSavedData.getDustbinContainer(i).isEmpty()) {
+					continue;
+				}
+				final int dustbinIndex = i;
+				message.append(Component.literal(" "));
+				message.append(Component.literal("[" + SMCommonConfig.DUSTBIN_NAME.get() + dustbinIndex + "]")
+						.withStyle(style -> style.withColor(ChatFormatting.GREEN)
+								.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/sweepermaid dustbin " + dustbinIndex))));
+			}
+			return message;
+		}
+
+		// 构建“前缀 + 垃圾箱区间”消息：用“Dustbin 0~7”这样的区间表示范围内的全部垃圾箱，而非逐个列出。
+		private Component binRangeMessage(String prefix, int startBin, int count) {
+			MutableComponent message = Component.literal(prefix);
+			if (count <= 0) {
+				return message;
+			}
+			String name = SMCommonConfig.DUSTBIN_NAME.get();
+			String range = count == 1 ? name + startBin : name + startBin + "~" + (startBin + count - 1);
+			message.append(Component.literal(" "));
+			message.append(Component.literal(range).withStyle(ChatFormatting.GREEN));
+			return message;
 		}
 
 		// 清理完成后统一反馈：ActionBar 统计、垃圾箱链接、区块过载警告。
@@ -377,32 +410,31 @@ public class SweeperMaid {
 				}
 			});
 
-			// Generate all dustbin messages and links
+			int binsPerRotation = this.instance.getBinsPerRotation();
+			int rotationCount = this.instance.getRotationCount();
+			int currentGeneration = this.instance.getCurrentGeneration();
+			int nextGeneration = (currentGeneration + 1) % rotationCount;
+
+			// 结账消息：只列出本次清理写入（当前轮换代）的非空垃圾箱，避免把下次就要被清空的另一代也列进来；回收箱非空时再附加其链接。
+			int currentStart = currentGeneration * binsPerRotation;
+			int nextStart = nextGeneration * binsPerRotation;
 			server.getPlayerList().getPlayers().forEach(player -> {
-				MutableComponent message = Component.literal(SMCommonConfig.CHAT_MESSAGE_AFTER_SWEEP.get());
+				MutableComponent message = nonEmptyBinLinks(SMCommonConfig.CHAT_MESSAGE_AFTER_SWEEP.get(), currentStart, binsPerRotation);
 
-				this.instance.accessDustbins(dustbins -> {
-					if(dustbins.isEmpty()) {
-						return;
-					}
-					boolean first = true;
-					for (int i = 0; i < dustbins.size(); ++i) {
-						if(SMSavedData.getDustbinContainer(i).isEmpty()) {
-							continue;
-						}
-						if(first) {
-							first = false;
-						} else {
-							message.append(Component.literal(", "));
-						}
-						final int dustbinIndex = i;
-						message.append(Component.literal("[" + SMCommonConfig.DUSTBIN_NAME.get() + dustbinIndex + "]")
-								.withStyle(style -> style.withColor(ChatFormatting.GREEN)
-										.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/sweepermaid dustbin " + dustbinIndex))));
-					}
-				});
-
+				SimpleContainer recycle = this.instance.getRecycle();
+				if (recycle != null && !recycle.isEmpty()) {
+					message.append(Component.literal(" "));
+					message.append(Component.literal("[" + SMCommonConfig.RECYCLE_NAME.get() + "]")
+							.withStyle(style -> style.withColor(ChatFormatting.GOLD)
+									.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/sweepermaid recycle"))));
+				}
 				player.sendSystemMessage(message);
+
+				// 分行反馈：回收箱移入数量（仅在有移入时）、下次清理将被清空的另一代垃圾箱区间（提醒玩家及时取回）。
+				if (this.rescuedToRecycle > 0) {
+					player.sendSystemMessage(Component.literal(SMCommonConfig.MESSAGE_RECYCLE_MOVED.get().replace("$1", String.valueOf(this.rescuedToRecycle))).withStyle(ChatFormatting.GOLD));
+				}
+				player.sendSystemMessage(binRangeMessage(SMCommonConfig.MESSAGE_EMPTIED_NEXT_SWEEP.get(), nextStart, binsPerRotation));
 			});
 
 			// Send overload message to players
@@ -422,7 +454,8 @@ public class SweeperMaid {
 				}
 			}));
 
-			this.instance.setDirty();
+			// 本次清理结束，推进轮换计数（内部会标记存档为脏）。
+			this.instance.advanceSweep();
 		}
 	}
 }
