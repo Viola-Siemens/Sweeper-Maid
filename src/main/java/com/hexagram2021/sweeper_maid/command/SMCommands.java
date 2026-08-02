@@ -87,7 +87,7 @@ public final class SMCommands {
 			return 0;
 		}
 
-		if (index >= 0 && index < SMSavedData.totalDustbinCount()) {
+		if (index >= 0 && index < SMSavedData.dustbinCount()) {
 			openContainer(player, SMCommonConfig.DUSTBIN_NAME.get() + index, SMSavedData.getDustbinContainer(index));
 			return 1;
 		}
@@ -153,7 +153,7 @@ public final class SMCommands {
 
 	// 清空指定索引的轮换垃圾箱；force 为 true 时连同受保护物品一并清除。
 	private static int emptyDustbin(CommandSourceStack source, int index, boolean force) {
-		if (index < 0 || index >= SMSavedData.totalDustbinCount()) {
+		if (index < 0 || index >= SMSavedData.dustbinCount()) {
 			source.sendFailure(Component.literal(SMCommonConfig.MESSAGE_WRONG_DUSTBIN.get()));
 			return 0;
 		}
@@ -172,7 +172,7 @@ public final class SMCommands {
 
 	// 为 index 参数提供有效垃圾箱序号的补全建议（整数参数默认不会出现在 Tab 补全中）。
 	private static CompletableFuture<Suggestions> suggestDustbinIndices(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
-		int total = SMSavedData.totalDustbinCount();
+		int total = SMSavedData.dustbinCount();
 		for (int i = 0; i < total; ++i) {
 			builder.suggest(i);
 		}

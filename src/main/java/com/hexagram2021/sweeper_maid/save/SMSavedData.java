@@ -165,9 +165,14 @@ public final class SMSavedData extends SavedData {
 		return SMCommonConfig.ROTATION_COUNT.get();
 	}
 
-	// 轮换垃圾箱总数（x * y）。
+	// 轮换垃圾箱总数（x * y）——配置目标数量，仅用于 initialize 调整列表大小。
 	public static int totalDustbinCount() {
 		return binsPerRotation() * rotationCount();
+	}
+
+	// 当前实际存在的垃圾箱数量——用于所有边界检查与遍历。配置热重载后 initialize 会使其与 totalDustbinCount() 保持一致。
+	public static int dustbinCount() {
+		return getInstance().dustbins.size();
 	}
 
 	// 本次清理使用的轮换代序号。
@@ -220,17 +225,14 @@ public final class SMSavedData extends SavedData {
 		return moved;
 	}
 
-	// 将物品加入当前轮换代的垃圾箱（找到第一个能容纳的）。若该代已满则物品被丢弃（与原溢出行为一致）。
+	// 将物品加入当前轮换代的垃圾箱：从该代第一个垃圾箱起依次尽量放入，一个放不下的余量顺延到下一个垃圾箱。整代都放满时余量被丢弃（与原溢出行为一致）。
 	public void addItemToActiveGeneration(ItemStack stack) {
 		synchronized (this.dustbins) {
 			int start = activeGeneration() * binsPerRotation();
 			int end = Math.min(start + binsPerRotation(), this.dustbins.size());
-			for (int i = start; i < end; ++i) {
-				SimpleContainer dustbin = this.dustbins.get(i);
-				if (dustbin.canAddItem(stack)) {
-					dustbin.addItem(stack);
-					return;
-				}
+			ItemStack remaining = stack;
+			for (int i = start; i < end && !remaining.isEmpty(); ++i) {
+				remaining = this.dustbins.get(i).addItem(remaining);
 			}
 		}
 	}
@@ -322,7 +324,7 @@ public final class SMSavedData extends SavedData {
 			return true;
 		}
 		ResourceLocation key = BuiltInRegistries.ITEM.getKey(stack.getItem());
-		return SMCommonConfig.RECYCLE_PROTECT_ITEMS.get().contains(key.toString());
+		return key != null && SMCommonConfig.RECYCLE_PROTECT_ITEMS.get().contains(key.toString());
 	}
 
 	/**
@@ -332,6 +334,10 @@ public final class SMSavedData extends SavedData {
 	 * </p>
 	 */
 	public static void initialize() {
+		if (INSTANCE == null) {
+			// 世界尚未加载（例如在主菜单热重载配置）时无实例可初始化，安全跳过。
+			return;
+		}
 		SMSavedData instance = getInstance();
 		List<SimpleContainer> dustbins = instance.dustbins;
 

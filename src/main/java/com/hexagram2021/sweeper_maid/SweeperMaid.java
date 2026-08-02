@@ -35,11 +35,13 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -93,11 +95,24 @@ public class SweeperMaid {
 	 *
 	 * @param modContainer 模组容器实例喵~
 	 */
-	public SweeperMaid(ModContainer modContainer) {
+	public SweeperMaid(ModContainer modContainer, IEventBus modEventBus) {
 		modContainer.registerConfig(ModConfig.Type.COMMON, SMCommonConfig.getConfig());
 		NeoForge.EVENT_BUS.register(this);
 
-		clean = () -> this.sweepTickRemain = 0;
+		// 监听配置热重载：管理员在线改动 toml 或经配置界面修改后，按新配置重建垃圾箱列表，避免列表大小与配置不一致导致越界。
+		modEventBus.addListener(this::onConfigReloading);
+
+		// 手动清理：直接请求一次清理，并重置自动清理倒计时（避免紧接着又触发一次自动清理）。
+		// 即使 ITEM_SWEEP_INTERVAL 为 0（关闭自动清理），手动 /sweepermaid clean 仍应生效。
+		clean = () -> {
+			this.toSweep = true;
+			this.sweepTickRemain = SMCommonConfig.ITEM_SWEEP_INTERVAL.get() * SharedConstants.TICKS_PER_SECOND;
+		};
+	}
+
+	// 配置热重载在文件监视线程触发：这里只置标志，真正的垃圾箱重建延后到服务器线程（onTickPost）且在两次清理之间进行，避免并发修改列表或打断进行中的清理。
+	private void onConfigReloading(ModConfigEvent.Reloading event) {
+		this.configReloaded = true;
 	}
 
 	/**
@@ -112,6 +127,9 @@ public class SweeperMaid {
 	// 进行中的清理任务；为 null 表示当前没有清理在进行。
 	@Nullable
 	private SweepJob currentJob = null;
+
+	// 配置热重载后需要在服务器线程重建垃圾箱列表的标志（在文件监视线程置位，服务器线程消费）。
+	private volatile boolean configReloaded = false;
 
 	/**
 	 * 注册模组命令事件处理喵~
@@ -156,16 +174,21 @@ public class SweeperMaid {
 	@SubscribeEvent
 	public void onTickPost(ServerTickEvent.Post event) {
 		MinecraftServer server = event.getServer();
-		if(SMCommonConfig.ITEM_SWEEP_INTERVAL.get() == 0) {
-			return;
-		}
+		// 不在此处按 interval==0 提前返回：进行中的任务与手动 clean 请求（toSweep）无论是否启用自动清理都要处理；仅倒计时（onTickPre）受 interval 控制。
 		if(this.currentJob != null) {
 			// 分摊执行进行中的清理：每 tick 处理配置数量的实体，全部完成后再统一反馈。
 			if(this.currentJob.process(SMCommonConfig.SWEEP_ENTITIES_PER_TICK.get())) {
 				this.currentJob.finalizeSweep(server);
 				this.currentJob = null;
 			}
-		} else if(this.toSweep) {
+			return;
+		}
+		// 仅在没有进行中的清理时才应用配置热重载的垃圾箱列表重建：在服务器线程执行，避免与清理并发修改列表，也不打断分摊中的清理。
+		if(this.configReloaded) {
+			this.configReloaded = false;
+			SMSavedData.initialize();
+		}
+		if(this.toSweep) {
 			// 一个清理任务未结束前不会开始下一个，避免并发清理。
 			this.toSweep = false;
 			this.currentJob = new SweepJob(server);
@@ -362,19 +385,28 @@ public class SweeperMaid {
 			}
 		}
 
-		// 构建“前缀 + 非空垃圾箱链接”消息：只列出范围内非空的垃圾箱，链接指向对应垃圾箱。
-		private MutableComponent nonEmptyBinLinks(String prefix, int startBin, int count) {
+		// 构建“前缀 + 非空垃圾箱”消息：扫描全部垃圾箱，把连续的非空垃圾箱合并为区间（如 Dustbin 0~3），单个的显示为 Dustbin 8；每段都可点击（区间点击打开其首个垃圾箱）。
+		private MutableComponent nonEmptyBinRanges(String prefix) {
 			MutableComponent message = Component.literal(prefix);
-			int total = SMSavedData.totalDustbinCount();
-			for (int i = startBin; i < startBin + count && i < total; ++i) {
+			int total = SMSavedData.dustbinCount();
+			String name = SMCommonConfig.DUSTBIN_NAME.get();
+			int i = 0;
+			while (i < total) {
 				if (SMSavedData.getDustbinContainer(i).isEmpty()) {
+					++i;
 					continue;
 				}
-				final int dustbinIndex = i;
+				int start = i;
+				while (i < total && !SMSavedData.getDustbinContainer(i).isEmpty()) {
+					++i;
+				}
+				int end = i - 1;
+				final int openIndex = start;
+				String label = start == end ? name + start : name + start + "~" + end;
 				message.append(Component.literal(" "));
-				message.append(Component.literal("[" + SMCommonConfig.DUSTBIN_NAME.get() + dustbinIndex + "]")
+				message.append(Component.literal("[" + label + "]")
 						.withStyle(style -> style.withColor(ChatFormatting.GREEN)
-								.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/sweepermaid dustbin " + dustbinIndex))));
+								.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/sweepermaid dustbin " + openIndex))));
 			}
 			return message;
 		}
@@ -415,11 +447,10 @@ public class SweeperMaid {
 			int currentGeneration = this.instance.getCurrentGeneration();
 			int nextGeneration = (currentGeneration + 1) % rotationCount;
 
-			// 结账消息：只列出本次清理写入（当前轮换代）的非空垃圾箱，避免把下次就要被清空的另一代也列进来；回收箱非空时再附加其链接。
-			int currentStart = currentGeneration * binsPerRotation;
+			// 结账消息：列出所有非空垃圾箱（连续的合并为区间），让玩家看到全部有物品的垃圾箱；回收箱非空时再附加其链接。
 			int nextStart = nextGeneration * binsPerRotation;
 			server.getPlayerList().getPlayers().forEach(player -> {
-				MutableComponent message = nonEmptyBinLinks(SMCommonConfig.CHAT_MESSAGE_AFTER_SWEEP.get(), currentStart, binsPerRotation);
+				MutableComponent message = nonEmptyBinRanges(SMCommonConfig.CHAT_MESSAGE_AFTER_SWEEP.get());
 
 				SimpleContainer recycle = this.instance.getRecycle();
 				if (recycle != null && !recycle.isEmpty()) {
