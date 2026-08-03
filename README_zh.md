@@ -1,4 +1,4 @@
-# 扫帚女仆 (Sweeper Maid)
+# 扫地女仆 (Sweeper Maid)
 
 [English](README.md) | **简体中文**
 

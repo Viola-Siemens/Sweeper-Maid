@@ -1,7 +1,7 @@
 {
-  "sweeper_maid.configuration.sweeper_maid-common-config": "扫帚女仆",
-  "sweeper_maid.configuration.section.sweeper.maid.common.toml": "扫帚女仆",
-  "sweeper_maid.configuration.section.sweeper.maid.common.toml.title": "扫帚女仆 配置",
+  "sweeper_maid.configuration.sweeper_maid-common-config": "扫地女仆",
+  "sweeper_maid.configuration.section.sweeper.maid.common.toml": "扫地女仆",
+  "sweeper_maid.configuration.section.sweeper.maid.common.toml.title": "扫地女仆 配置",
 
   "sweeper_maid.configuration.ITEM_SWEEP_INTERVAL": "清理间隔（秒）",
   "sweeper_maid.configuration.MIN_ITEM_AGE_SECONDS": "物品最小存在时间（秒）",
