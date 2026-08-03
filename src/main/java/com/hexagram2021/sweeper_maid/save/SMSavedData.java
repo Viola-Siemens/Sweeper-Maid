@@ -19,7 +19,6 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 /**
  * 扫帚女仆模组存档数据类喵~
@@ -240,21 +239,6 @@ public final class SMSavedData extends SavedData {
 	// 一次清理结束后推进计数，使下次清理使用下一个轮换代。
 	public void advanceSweep() {
 		this.sweepCount += 1;
-		this.setDirty();
-	}
-
-	/**
-	 * 访问垃圾箱列表喵~
-	 * <p>
-	 * 以线程安全的方式访问垃圾箱列表，并标记数据为已修改喵~
-	 * </p>
-	 *
-	 * @param consumer 访问垃圾箱列表的消费者函数喵~
-	 */
-	public void accessDustbins(Consumer<List<SimpleContainer>> consumer) {
-		synchronized (this.dustbins) {
-			consumer.accept(this.dustbins);
-		}
 		this.setDirty();
 	}
 
