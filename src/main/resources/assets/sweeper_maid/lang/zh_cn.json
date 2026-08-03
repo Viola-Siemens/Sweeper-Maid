@@ -1,0 +1,38 @@
+{
+  "sweeper_maid.configuration.sweeper_maid-common-config": "扫帚女仆",
+  "sweeper_maid.configuration.section.sweeper.maid.common.toml": "扫帚女仆",
+  "sweeper_maid.configuration.section.sweeper.maid.common.toml.title": "扫帚女仆 配置",
+
+  "sweeper_maid.configuration.ITEM_SWEEP_INTERVAL": "清理间隔（秒）",
+  "sweeper_maid.configuration.MIN_ITEM_AGE_SECONDS": "物品最小存在时间（秒）",
+  "sweeper_maid.configuration.SWEEP_ENTITIES_PER_TICK": "每刻处理实体数",
+  "sweeper_maid.configuration.ITEM_OVERLOAD_THRESHOLD": "物品过载阈值",
+  "sweeper_maid.configuration.OVERLOAD_MESSAGE": "过载警告消息",
+  "sweeper_maid.configuration.EXTRA_ENTITY_TYPES": "额外清理的实体类型",
+  "sweeper_maid.configuration.ITEM_WHITELIST": "物品白名单",
+  "sweeper_maid.configuration.ITEM_BLACKLIST": "物品黑名单",
+
+  "sweeper_maid.configuration.DUSTBIN_NAME": "垃圾箱名称前缀",
+  "sweeper_maid.configuration.DUSTBINS_PER_ROTATION": "每轮换代垃圾箱数 (x)",
+  "sweeper_maid.configuration.ROTATION_COUNT": "轮换代数 (y)",
+
+  "sweeper_maid.configuration.ENABLE_RECYCLE": "启用回收箱",
+  "sweeper_maid.configuration.RECYCLE_NAME": "回收箱名称",
+  "sweeper_maid.configuration.RECYCLE_PROTECT_RARITY": "保护稀有度阈值",
+  "sweeper_maid.configuration.RECYCLE_PROTECT_ENCHANTED": "保护附魔物品",
+  "sweeper_maid.configuration.RECYCLE_PROTECT_NAMED": "保护命名物品",
+  "sweeper_maid.configuration.RECYCLE_PROTECT_ITEMS": "始终保护的物品",
+
+  "sweeper_maid.configuration.CHAT_MESSAGE_AFTER_SWEEP": "清理后聊天消息",
+  "sweeper_maid.configuration.MESSAGE_AFTER_SWEEP": "清理完成消息",
+  "sweeper_maid.configuration.MESSAGE_BEFORE_SWEEP_15_30_60": "清理前提示（60/30/15 秒）",
+  "sweeper_maid.configuration.MESSAGE_BEFORE_SWEEP_1_10": "清理前提示（1-10 秒）",
+  "sweeper_maid.configuration.MESSAGE_WRONG_DUSTBIN": "无效垃圾箱提示",
+  "sweeper_maid.configuration.MESSAGE_RECYCLE_MOVED": "移入回收箱提示",
+  "sweeper_maid.configuration.MESSAGE_EMPTIED_NEXT_SWEEP": "下次清空提示",
+  "sweeper_maid.configuration.MESSAGE_DUSTBIN_EMPTIED": "清空反馈",
+
+  "sweeper_maid.configuration.PERMISSION_LEVEL_DUSTBIN": "权限：打开垃圾箱",
+  "sweeper_maid.configuration.PERMISSION_LEVEL_CLEAN": "权限：立即清理",
+  "sweeper_maid.configuration.PERMISSION_LEVEL_EMPTY": "权限：手动清空"
+}

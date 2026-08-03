@@ -1,0 +1,38 @@
+{
+  "sweeper_maid.configuration.sweeper_maid-common-config": "Sweeper Maid",
+  "sweeper_maid.configuration.section.sweeper.maid.common.toml": "Sweeper Maid",
+  "sweeper_maid.configuration.section.sweeper.maid.common.toml.title": "Sweeper Maid Config",
+
+  "sweeper_maid.configuration.ITEM_SWEEP_INTERVAL": "Sweep Interval (s)",
+  "sweeper_maid.configuration.MIN_ITEM_AGE_SECONDS": "Min Item Age (s)",
+  "sweeper_maid.configuration.SWEEP_ENTITIES_PER_TICK": "Entities Per Tick",
+  "sweeper_maid.configuration.ITEM_OVERLOAD_THRESHOLD": "Overload Threshold",
+  "sweeper_maid.configuration.OVERLOAD_MESSAGE": "Overload Message",
+  "sweeper_maid.configuration.EXTRA_ENTITY_TYPES": "Extra Entity Types",
+  "sweeper_maid.configuration.ITEM_WHITELIST": "Item Whitelist",
+  "sweeper_maid.configuration.ITEM_BLACKLIST": "Item Blacklist",
+
+  "sweeper_maid.configuration.DUSTBIN_NAME": "Dustbin Name Prefix",
+  "sweeper_maid.configuration.DUSTBINS_PER_ROTATION": "Dustbins Per Rotation (x)",
+  "sweeper_maid.configuration.ROTATION_COUNT": "Rotation Count (y)",
+
+  "sweeper_maid.configuration.ENABLE_RECYCLE": "Enable Recycle Bin",
+  "sweeper_maid.configuration.RECYCLE_NAME": "Recycle Bin Name",
+  "sweeper_maid.configuration.RECYCLE_PROTECT_RARITY": "Protect Rarity ≥",
+  "sweeper_maid.configuration.RECYCLE_PROTECT_ENCHANTED": "Protect Enchanted",
+  "sweeper_maid.configuration.RECYCLE_PROTECT_NAMED": "Protect Named",
+  "sweeper_maid.configuration.RECYCLE_PROTECT_ITEMS": "Always-Protected Items",
+
+  "sweeper_maid.configuration.CHAT_MESSAGE_AFTER_SWEEP": "Checkout Chat Message",
+  "sweeper_maid.configuration.MESSAGE_AFTER_SWEEP": "After-Sweep Message",
+  "sweeper_maid.configuration.MESSAGE_BEFORE_SWEEP_15_30_60": "Countdown Message (60/30/15s)",
+  "sweeper_maid.configuration.MESSAGE_BEFORE_SWEEP_1_10": "Countdown Message (1-10s)",
+  "sweeper_maid.configuration.MESSAGE_WRONG_DUSTBIN": "Wrong-Dustbin Message",
+  "sweeper_maid.configuration.MESSAGE_RECYCLE_MOVED": "Recycle-Moved Message",
+  "sweeper_maid.configuration.MESSAGE_EMPTIED_NEXT_SWEEP": "Next-Sweep Warning",
+  "sweeper_maid.configuration.MESSAGE_DUSTBIN_EMPTIED": "Emptied Feedback",
+
+  "sweeper_maid.configuration.PERMISSION_LEVEL_DUSTBIN": "Permission: Open Dustbin",
+  "sweeper_maid.configuration.PERMISSION_LEVEL_CLEAN": "Permission: Clean Now",
+  "sweeper_maid.configuration.PERMISSION_LEVEL_EMPTY": "Permission: Empty"
+}

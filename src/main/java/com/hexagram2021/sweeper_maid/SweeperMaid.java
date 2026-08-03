@@ -1,6 +1,7 @@
 package com.hexagram2021.sweeper_maid;
 
 import com.google.common.collect.Maps;
+import com.hexagram2021.sweeper_maid.client.SweeperMaidClient;
 import com.hexagram2021.sweeper_maid.command.SMCommands;
 import com.hexagram2021.sweeper_maid.config.SMCommonConfig;
 import com.hexagram2021.sweeper_maid.save.SMSavedData;
@@ -42,6 +43,7 @@ import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.config.ModConfigEvent;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -101,6 +103,11 @@ public class SweeperMaid {
 
 		// 监听配置热重载：管理员在线改动 toml 或经配置界面修改后，按新配置重建垃圾箱列表，避免列表大小与配置不一致导致越界。
 		modEventBus.addListener(this::onConfigReloading);
+
+		// 仅在物理客户端注册内置配置界面：专用服务器不会加载任何客户端类，保持核心仅服务端可用。
+		if (FMLEnvironment.dist.isClient()) {
+			SweeperMaidClient.init(modContainer);
+		}
 
 		// 手动清理：直接请求一次清理，并重置自动清理倒计时（避免紧接着又触发一次自动清理）。
 		// 即使 ITEM_SWEEP_INTERVAL 为 0（关闭自动清理），手动 /sweepermaid clean 仍应生效。
