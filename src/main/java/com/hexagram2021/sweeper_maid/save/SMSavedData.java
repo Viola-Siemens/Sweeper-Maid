@@ -153,6 +153,29 @@ public final class SMSavedData extends SavedData {
 	}
 
 	/**
+	 * 清空指定索引的垃圾箱并返回其中的物品总数量喵~
+	 * <p>
+	 * 在访问垃圾箱列表的同步锁内统计并清空容器，以确保清空后的数据会被正确保存喵~
+	 * </p>
+	 *
+	 * @param index 垃圾箱索引喵~
+	 * @return 清空前垃圾箱内的物品总数量喵~
+	 */
+	public static int clearDustbin(int index) {
+		SMSavedData instance = getInstance();
+		synchronized (instance.dustbins) {
+			SimpleContainer dustbin = instance.dustbins.get(index);
+			int itemCount = 0;
+			for (int slot = 0; slot < dustbin.getContainerSize(); ++slot) {
+				itemCount += dustbin.getItem(slot).getCount();
+			}
+			dustbin.clearContent();
+			instance.setDirty();
+			return itemCount;
+		}
+	}
+
+	/**
 	 * 访问垃圾箱列表喵~
 	 * <p>
 	 * 以线程安全的方式访问垃圾箱列表，并标记数据为已修改喵~

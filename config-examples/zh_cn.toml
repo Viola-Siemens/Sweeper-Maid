@@ -11,6 +11,8 @@
     MESSAGE_BEFORE_SWEEP_1_10 = "【清洁女仆】：§9§l$1秒§r后清除掉落物，请妥善保管您的物品！"
     #What message will be sent to players after a sweep. "$1" stands for the number of killed dropped items, and "$2" stands for the number of killed entities.
     MESSAGE_AFTER_SWEEP = "【清洁女仆】：本次清扫带走了§6§l$1个§r掉落物、§6§l$2个§r卡服实体。§6§l15分钟§r后将开始下一次清扫！"
+    #What message will be sent to players after clearing a dustbin. "$1" stands for the dustbin index and "$2" stands for the number of cleared items.
+    MESSAGE_AFTER_CLEAR_DUSTBIN = "【清洁女仆】：已清空垃圾箱$1，共清除§6§l$2个§r物品。"
     #What chat message will be sent to players after a sweep. Command will be appended to the end of the chat message.
     CHAT_MESSAGE_AFTER_SWEEP = "【清洁女仆】：§6§l15分钟§r后将开始下一次清扫~寻找丢失物品➡"
     #Permission level of a player to open the dustbin.
