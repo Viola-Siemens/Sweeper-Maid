@@ -73,6 +73,10 @@ public final class SMCommonConfig {
 	 */
 	public static final ForgeConfigSpec.ConfigValue<String> MESSAGE_WRONG_DUSTBIN;
 	/**
+	 * 清空垃圾箱后的提示消息模板喵~
+	 */
+	public static final ForgeConfigSpec.ConfigValue<String> MESSAGE_AFTER_CLEAR_DUSTBIN;
+	/**
 	 * 垃圾箱名称前缀喵~
 	 */
 	public static final ForgeConfigSpec.ConfigValue<String> DUSTBIN_NAME;
@@ -126,6 +130,8 @@ public final class SMCommonConfig {
 				.define("MESSAGE_AFTER_SWEEP", "[Sweeper Maid]: $1 dropped items, $2 unnecessary entities and $3 blacklist items are cleaned during this sweeping.");
 		MESSAGE_WRONG_DUSTBIN = BUILDER.comment("What message will be sent to players when open a wrong dustbin.")
 				.define("MESSAGE_WRONG_DUSTBIN", "[Sweeper Maid]: Wrong dustbin.");
+		MESSAGE_AFTER_CLEAR_DUSTBIN = BUILDER.comment("What message will be sent to players after clearing a dustbin. \"$1\" stands for the dustbin index and \"$2\" stands for the number of cleared items.")
+				.define("MESSAGE_AFTER_CLEAR_DUSTBIN", "[Sweeper Maid]: Cleared $2 items from dustbin $1.");
 		DUSTBIN_NAME = BUILDER.comment("Name of dustbins.").define("DUSTBIN_NAME", "Dustbin ");
 		DUSTBIN_COUNT = BUILDER.comment("Count of dustbins").defineInRange("DUSTBIN_COUNT", 8, 1, 64);
 		CHAT_MESSAGE_AFTER_SWEEP = BUILDER.comment("What chat message will be sent to players after a sweep. Command will be appended to the end of the chat message.")
