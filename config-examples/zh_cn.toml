@@ -1,30 +1,60 @@
+# 简体中文示例配置：把各条通知文本改成中文即可（占位符 $1/$2 等会被替换）。
+# 复制到 config/sweeper_maid-common.toml，或参照其中的 MESSAGE_* 项自行填写。
 
 [sweeper_maid-common-config]
-#If 0, disable item sweeping. If > 0, cool down (in seconds) between two item sweeping.
-#Range: 0 ~ 360000
-ITEM_SWEEP_INTERVAL = 600
-#Permission level of a player to open the dustbin.
-#Range: 0 ~ 4
-PERMISSION_LEVEL_DUSTBIN = 0
-#Items in this list will be cleaned but not added to the dustbin.
-ITEM_BLACKLIST = ["minecraft:cobblestone", "minecraft:sand"]
-#Item overload in a chunk. If exceeded, a warning message will be sent.
-#Range: 1 ~ 6400000
-ITEM_OVERLOAD_THRESHOLD = 640
-#Other entities of types will be killed when cleaning, e.g. arrows. You can also kill mobs or even players by setting this.
-EXTRA_ENTITY_TYPES = ["minecraft:arrow", "minecraft:spectral_arrow", "oceanworld:drip_ice"]
-#What message will be sent to players when there's 15s, 30s and 60s left to sweep. "$1" stands for the remaining time (in seconds).
-MESSAGE_BEFORE_SWEEP_15_30_60 = "[扫地女仆]：我将在 $1 秒后打扫地板！"
-#What message will be sent to players when there's 1s~10s left to sweep. "$1" stands for the remaining time (in seconds).
-MESSAGE_BEFORE_SWEEP_1_10 = "[扫地女仆]：我将在 $1 秒后打扫地板！"
-#What message will be sent to players after a sweep. "$1" stands for the number of killed dropped items, and "$2" stands for the number of killed entities.
-MESSAGE_AFTER_SWEEP = "[扫地女仆]：清扫过程中清理了 $1 个掉落物品和 $2 个不必要的实体。"
-#What chat message will be sent to players after a sweep. Command will be appended to the end of the chat message.
-CHAT_MESSAGE_AFTER_SWEEP = "[扫地女仆]：有遗漏的东西吗？让我们检查一下垃圾箱： "
-#What message will be sent to players when open a wrong dustbin.
-MESSAGE_WRONG_DUSTBIN = "[扫地女仆]：没有这个垃圾箱哦!"
-#Dustbin.
-DUSTBIN_NAME = "垃圾箱 "
-#Message to be sent when item overload threshold is exceeded. "$1" stands for chunk X position, "$2" stands for chunk Z position, and "$3" stands for item count.
-OVERLOAD_MESSAGE = "[扫地女仆]: 位于此区域 ($1, $2) 的物品过多, 整整有 $3 个!"
-
+	# If 0, disable item sweeping. If > 0, cool down (in seconds) between two item sweeping.
+	ITEM_SWEEP_INTERVAL = 600
+	# Dropped items younger than this age (in seconds) will not be swept.
+	MIN_ITEM_AGE_SECONDS = 5
+	# Max entities processed per server tick while a sweep runs. 0 = finish in one tick.
+	SWEEP_ENTITIES_PER_TICK = 200
+	# Item overload in a chunk. If exceeded, a warning message will be sent.
+	ITEM_OVERLOAD_THRESHOLD = 640
+	# "$1" = chunk X, "$2" = chunk Z, "$3" = item count, "$4" = item id.
+	OVERLOAD_MESSAGE = "[扫地女仆]：区域 ($1, $2) 内的掉落物过多，$4 整整有 $3 个！"
+	# Other entities of these types will also be removed when cleaning, e.g. arrows.
+	EXTRA_ENTITY_TYPES = ["minecraft:arrow", "minecraft:spectral_arrow", "oceanworld:drip_ice"]
+	# Items in this list are never swept (left on the ground).
+	ITEM_WHITELIST = ["minecraft:nether_star", "minecraft:heavy_core"]
+	# Items in this list are swept but not stored (discarded).
+	ITEM_BLACKLIST = ["minecraft:cobblestone", "minecraft:sand"]
+	# Countdown message at 60/30/15s. "$1" = remaining seconds.
+	MESSAGE_BEFORE_SWEEP_15_30_60 = "[扫地女仆]：我将在 $1 秒后打扫地板！"
+	# Countdown message in the last 10s. "$1" = remaining seconds.
+	MESSAGE_BEFORE_SWEEP_1_10 = "[扫地女仆]：我将在 $1 秒后打扫地板！"
+	# After-sweep ActionBar. "$1" = items stored, "$2" = entities removed, "$3" = blacklist items removed.
+	MESSAGE_AFTER_SWEEP = "[扫地女仆]：本次清扫共清理了 $1 个掉落物、$2 个多余实体和 $3 个黑名单物品。"
+	# Shown when opening an invalid dustbin / recycle bin.
+	MESSAGE_WRONG_DUSTBIN = "[扫地女仆]：没有这个垃圾箱哦！"
+	# Dustbin name prefix (the index is appended).
+	DUSTBIN_NAME = "垃圾箱 "
+	# Dustbins per rotation (x). Total = DUSTBINS_PER_ROTATION * ROTATION_COUNT.
+	DUSTBINS_PER_ROTATION = 8
+	# Rotations (y). Also how many sweeps swept items stay recoverable.
+	ROTATION_COUNT = 2
+	# Move protected items to a non-rotating recycle bin instead of deleting them.
+	ENABLE_RECYCLE = true
+	# Recycle bin name.
+	RECYCLE_NAME = "回收箱"
+	# Protect items at or above this rarity: COMMON / UNCOMMON / RARE / EPIC.
+	RECYCLE_PROTECT_RARITY = "RARE"
+	# Protect enchanted items.
+	RECYCLE_PROTECT_ENCHANTED = true
+	# Protect items with a custom name.
+	RECYCLE_PROTECT_NAMED = true
+	# Item IDs that are always protected.
+	RECYCLE_PROTECT_ITEMS = []
+	# Post-sweep chat message; links to this sweep's non-empty dustbins are appended.
+	CHAT_MESSAGE_AFTER_SWEEP = "[扫地女仆]：有遗漏的东西吗？来看看垃圾箱吧："
+	# Shown when protected items are moved to the recycle bin. "$1" = number moved.
+	MESSAGE_RECYCLE_MOVED = "[扫地女仆]：$1 个受保护物品已被移入回收箱。"
+	# Warning prefix for the dustbins that will be emptied next sweep (a range is appended).
+	MESSAGE_EMPTIED_NEXT_SWEEP = "[扫地女仆]：下次清扫将清空（记得及时取回！）："
+	# Feedback after a manual empty. "$1" = the emptied target's name.
+	MESSAGE_DUSTBIN_EMPTIED = "[扫地女仆]：$1 已被清空。"
+	# Permission level to open a dustbin.
+	PERMISSION_LEVEL_DUSTBIN = 0
+	# Permission level to sweep immediately (/sweepermaid clean).
+	PERMISSION_LEVEL_CLEAN = 2
+	# Permission level to empty dustbins manually (/sweepermaid empty ...).
+	PERMISSION_LEVEL_EMPTY = 2

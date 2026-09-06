@@ -11,6 +11,8 @@ issueTrackerURL="https://github.com/Viola-Siemens/Sweeper-Maid/issues"
     credits="Hexagram"
     authors="${mod_authors}"
     description='''${mod_description}'''
+    # 核心模组仅含服务端逻辑、无任何客户端代码：忽略版本握手，允许原版客户端或未安装本模组的客户端加入服务器。
+    displayTest="IGNORE_ALL_VERSION"
 
 [[dependencies.${mod_id}]]
     modId="neoforge"
